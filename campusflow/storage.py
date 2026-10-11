@@ -73,7 +73,7 @@ def load_tickets(path):
         )
         if not ok:
             raise CorruptDataError(payload)
-        _, (title, category, urgency, affected_users) = payload
+        title, category, urgency, affected_users = payload
 
         # 5e. priority: stored as-is (lowercased), never recomputed.
         raw_priority = ticket["priority"]
