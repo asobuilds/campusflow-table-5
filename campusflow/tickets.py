@@ -59,3 +59,21 @@ def validate_ticket_input(title, category, urgency, affected_users):
         return (False, "affected_users must be a positive whole number")
 
     return (True, (title, category, urgency, count))
+
+
+def calculate_priority(urgency, affected_users):
+    """
+    Returns one of: "critical", "high", "medium", "low".
+
+    ASSUMES urgency has already been normalized to lowercase
+    ("low", "medium", "high") and affected_users is a positive int.
+    Does NOT validate or normalize — the caller (create_ticket or
+    load_tickets) is responsible for that.
+    """
+    if urgency == "high" and affected_users >= 10:
+        return "critical"
+    if urgency == "high" or affected_users >= 10:
+        return "high"
+    if urgency == "medium" or affected_users >= 3:
+        return "medium"
+    return "low"
