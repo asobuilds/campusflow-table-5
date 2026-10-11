@@ -158,3 +158,26 @@ _Feature: F5 (work queue)_
 - **Related file/commit:** `tests/test_reports.py`, `test_tie_break_is_numeric_not_lexicographic`, commit `77a1fef`.
 
 - **What I can now explain without AI:** A comment in a test is a claim like any other. Two assertions can look like belt-and-braces while actually testing the same thing; the only way to know which bug each one catches is to build the broken version and watch which line fails.
+
+### Interaction #4 — Cross-module invariant: string validation vs. numeric tie-breaking
+
+_Feature: F7 (persistence) and F5 (work queue)_
+
+- **Problem:** When specifying `load_tickets` in `storage.py`, Engineer A proposed validating ticket IDs with regex `^T\d+$` and checking uniqueness as raw strings across the file. I needed to verify whether string-based uniqueness and unpadded IDs would preserve the queue ordering contract in `reports.py`.
+
+- **My initial understanding:** The AI drafted `tests/test_storage.py` and left the handling of ID format and padding marked `OPEN`. I initially assumed A's string-level `^T\d+$` check would be sufficient since `create_ticket` produces well-formed strings.
+
+- **Prompt to AI:** "If load_tickets accepts any ^T\d+$ string and checks uniqueness on raw strings, what happens in work_queue if a hand-edited file contains both 'T7' and 'T007'?"
+
+- **Useful AI guidance:** The AI pointed out that `work_queue` sorts on `(RANK[priority], int(id[1:]))`. As integers, `int("7") == int("007") == 7`. If distinct string IDs with the same numeric value exist in the store, the numeric tie-break produces an exact tie and falls back to arrival order — reintroducing the exact non-deterministic queue ordering that §7 exists to eliminate.
+
+- **My independent experiment/test:** Applied Engineer A's own stated design principle: *"load_tickets is a normalizer, not a validator; accept anything that can be normalized to what create_ticket writes."* Since `create_ticket` formats IDs as `f"T{n:03d}"`, `"T7"` should normalize to `"T007"`. Furthermore, uniqueness in `load_tickets` cannot be checked on strings; it must be checked on `int(id[1:])` so that `"T7"` and `"T007"` collide and raise `CorruptDataError`. I wrote two test cases to verify this distinction: `test_id_is_zero_padded_to_three_digits` and `test_duplicate_ids_by_numeric_value_raise`.
+
+- **Verification source or result:** Proposed this analysis to Engineer A during PR review. Engineer A accepted the rationale and updated the §2 decision table in `docs/design-decisions.md`: `"T7"` normalizes to `f"T{int(id[1:]):03d}"`, and uniqueness across the loaded file is enforced on `int(id[1:])`. Verified with all 40 tests passing in `tests/test_storage.py`.
+
+- **Decision:** **Accepted and extended** the normalization principle: evaluation of an AI-generated test scaffolding led to identifying where a teammate's spec contradicted an invariant in another module. Enforcing canonical representation at the boundary prevented a subtle sorting bug downstream.
+
+- **Related file/commit:** `docs/design-decisions.md` (§2 decision table), `campusflow/storage.py`, `tests/test_storage.py` (`test_id_is_zero_padded_to_three_digits`, `test_duplicate_ids_by_numeric_value_raise`), commit `1a87df8`.
+
+- **What I can now explain without AI:** Boundary normalization must do more than check local syntax; it must produce the canonical form expected by downstream modules. If two syntactically valid inputs normalize to the same semantic identity, uniqueness must be enforced on that semantic identity, or downstream tie-breaking breaks silently.
+
