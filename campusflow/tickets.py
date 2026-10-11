@@ -24,7 +24,7 @@ def validate_ticket_input(title, category, urgency, affected_users):
     # 2. CATEGORY
     if not isinstance(category, str):
         return (False, "Category must be one of: Network, Hardware, Software, Other")
-    category = category.lower()
+    category = category.strip().lower()
     categories = {
         "network": "Network",
         "hardware": "Hardware",
@@ -38,25 +38,28 @@ def validate_ticket_input(title, category, urgency, affected_users):
     # 3. URGENCY
     if not isinstance(urgency, str):
         return (False, "Urgency must be one of: low, medium, high")
-    urgency = urgency.lower()
+    urgency = urgency.strip().lower()
     if urgency not in {"low", "medium", "high"}:
         return (False, "Urgency must be one of: low, medium, high")
 
     # 4. AFFECTED_USERS
     # bool must be rejected BEFORE int: True == 1 in Python.
+    # float must be rejected: 2.0 is a float, not a positive whole number.
     if isinstance(affected_users, bool):
-        return (False, "affected_users must be a positive whole number")
+        return (False, "affected_users must be a positive whole number (integer, not decimal)")
     if isinstance(affected_users, float):
-        return (False, "affected_users must be a positive whole number")
+        return (False, "affected_users must be a positive whole number (integer, not decimal)")
     if isinstance(affected_users, int):
         count = affected_users
     else:
+        # int() raises TypeError for None/list/dict, ValueError for "abc"/"1.5".
+        # Both must be caught: §1 says user-fixable failures return (False, msg).
         try:
             count = int(affected_users)
-        except ValueError:
-            return (False, "affected_users must be a positive whole number")
+        except (TypeError, ValueError):
+            return (False, "affected_users must be a positive whole number (integer, not decimal)")
     if count <= 0:
-        return (False, "affected_users must be a positive whole number")
+        return (False, "affected_users must be a positive whole number (integer, not decimal)")
 
     return (True, (title, category, urgency, count))
 

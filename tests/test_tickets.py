@@ -91,3 +91,35 @@ class TestTicketCreation(unittest.TestCase):
         ok, ticket = create_ticket(tickets, "Valid title", "Network", "High", 2)
         self.assertTrue(ok)
         self.assertEqual(ticket["priority"], "high")
+
+    # --- B's review (PR #9) — new tests for the two blocking fixes ---
+
+    def test_affected_users_none_rejected(self):
+        # int(None) raises TypeError, not ValueError. Both must be caught
+        # so §1's contract holds: user-fixable failures return (False, msg).
+        tickets = []
+        ok, message = create_ticket(tickets, "Valid title", "Network", "low", None)
+        self.assertFalse(ok)
+        self.assertIsInstance(message, str)
+        self.assertEqual(len(tickets), 0)
+
+    def test_affected_users_list_rejected(self):
+        # int([]) raises TypeError too. Same contract.
+        tickets = []
+        ok, message = create_ticket(tickets, "Valid title", "Network", "low", [])
+        self.assertFalse(ok)
+        self.assertIsInstance(message, str)
+        self.assertEqual(len(tickets), 0)
+
+    def test_category_with_surrounding_whitespace_accepted(self):
+        # "  Network  " should normalize to "Network".
+        tickets = []
+        ok, ticket = create_ticket(tickets, "Valid title", "  Network  ", "low", 1)
+        self.assertTrue(ok)
+        self.assertEqual(ticket["category"], "Network")
+
+    def test_urgency_with_surrounding_whitespace_accepted(self):
+        tickets = []
+        ok, ticket = create_ticket(tickets, "Valid title", "Network", "  HIGH  ", 1)
+        self.assertTrue(ok)
+        self.assertEqual(ticket["urgency"], "high")
