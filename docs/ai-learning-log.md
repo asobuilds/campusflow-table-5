@@ -1,16 +1,50 @@
 # AI Learning Log — CampusFlow
 
-Per the Fellows' Guide §5.3. One entry per meaningful AI interaction.
+Two fellows, one file. Rule: each fellow edits ONLY their own section and
+appends to the END of that section. If we collide at merge time, follow §4.6
+of the Fellows' Guide: inspect the conflict markers, keep both, resolve on the
+branch, rerun tests.
 
-**Minimum: THREE entries per fellow. At least ONE must document an AI suggestion
-that was corrected, improved, or rejected after independent verification.**
-
-> **Honesty rule:** do not fabricate a flaw, and do not claim to have verified
-> something you did not actually run.
+Guide requirement: THREE entries per fellow. At least ONE must document an AI
+suggestion that was corrected, improved or rejected after independent
+verification. Do not fabricate a flaw, and do not claim to have verified
+something you did not run.
 
 ---
 
-## Fellow: Eyung Emmanuel (Engineer B)
+## Fellow: Agene (Engineer A)
+
+### Interaction #1 — <concept/topic>
+
+Problem: <what I needed to learn>
+
+My initial understanding:
+
+Prompt to AI: my actual prompt
+
+Useful AI guidance: <brief summary>
+
+My independent experiment/test: <what I ran and observed>
+
+Verification source or result: <test result / reference>
+
+Decision: <accepted, improved or rejected and why>
+
+Related file/commit: <path, test name, SHA or PR link>
+
+What I can now explain without AI: <my words>
+
+### Interaction #2 — <concept/topic>
+
+(same template)
+
+### Interaction #3 — <concept/topic>
+
+(same template)
+
+---
+
+## Fellow: Eyung (Engineer B)
 
 ### Interaction #1 — Sorting with keys, tie-breaking, and numeric ticket IDs
 
@@ -41,26 +75,10 @@ _Feature: F5 (work queue)_
 
 - **What I can now explain without AI:** "T005 comes out first since it first arrived" — the tie is decided by arrival order, not by the ticket ID, so the bare key gives a different queue depending on the order the file happened to be in.
 
-### Interaction #2 — JSON round-trip, and the cost of catching exceptions too broadly
+### Interaction #2 — <concept/topic>
 
-_Feature: F7 (persistence)_
+(same template)
 
-- **Problem:** <what I needed to learn>
-- **My initial understanding:** <in my own words — written BEFORE consulting AI>
-- **Prompt to AI:** <my actual prompt>
-- **Useful AI guidance:** <brief summary of what came back>
-- **My independent experiment/test:** <the snippet I ran; what I predicted vs. observed>
-- **Verification source or result:** <actual output, test result, or reference URL>
-- **Decision:** <accepted / improved / rejected — and why>
-- **Related file/commit:** <path, test name, SHA, or PR link>
-- **What I can now explain without AI:** <my words>
+### Interaction #3 — <concept/topic>
 
-### Interaction #3 — <topic chosen during Phase 4>
-
-_Reserved. The guide requires one further entry completed while coding/debugging._
-
----
-
-## Fellow: Agene Okoh (Engineer A)
-
-_To be completed by Engineer A. Own your own entries — do not let your partner write them._
+(same template)
