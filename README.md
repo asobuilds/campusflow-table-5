@@ -1,137 +1,129 @@
 # CampusFlow
 
-A command-line technical helpdesk ticket manager for Learn2Earn campus staff.
-Logs, prioritizes, assigns, and tracks IT support requests (Wi-Fi outages,
-faulty laptops, broken dev environments, inaccessible platforms) that would
-otherwise get lost in informal reports.
+A robust, command-line technical helpdesk application designed for **Learn2Earn campus staff** to log, prioritize, assign, and track IT support requests.
 
-Built as a two-person AI-Native Engineering Sprint. Python standard library
-only — no frameworks, no database, no API keys.
+This repository represents the output of a **6-Hour AI-Native Engineering Sprint** focused on deliberate learning, comprehensive test automation, and professional peer-review workflows.
+
+---
 
 ## The Problem
 
-Informal reports of campus technical issues go missing. There is no shared
-record of what broke, how urgent it is, who owns it, and whether it is fixed.
-CampusFlow fixes that with a small, dependable CLI backed by a JSON file.
+CampusFlow solves the problem where Learn2Earn campus staff receive technical support requests — such as Wi-Fi outages, faulty laptops, broken dev environments, and inaccessible platforms — that get lost in informal chat channels. CampusFlow provides a dependable Python CLI ticket manager that records issues, prioritizes work automatically, assigns responsibility, and tracks lifecycle progress.
 
 ## Team
 
-- **Agene Okoh** — Engineer A: ticket creation, validation, priority engine, storage
+- **Agene Okoh** — Engineer A: tickets, validation, priority engine, storage
 - **Eyung Emmanuel** — Engineer B: assignment, workflow, work queue, reports
 
-## Requirements
+---
 
-- Python 3.10 or newer (uses modern type-hint syntax in docstrings)
-- No third-party packages required
+## Running It
 
-## Setup
+Requires Python 3.8+ (standard library only; zero external dependencies).
 
 ```bash
-git clone https://github.com/asobuilds/campusflow-table-5.git
-cd campusflow-table-5
-
-Running the app
-bash
 python3 main.py
+```
 
-Running the tests
-bash
+The CLI reads from and writes to `data/tickets.json`, which is automatically created on first save.
+
+## Running the Tests
+
+```bash
 python3 -m unittest discover -s tests -v
-The test suite covers:
+```
 
-Ticket creation with automatic ID generation (T001, T002, ...)
+119 automated unit tests across five test suites:
 
-Input validation (blank title, affected_users rejecting 0, 2.5,
-True, None, []; case-insensitive category and urgency)
+| File | Covers | Tests |
+|---|---|---|
+| `tests/test_tickets.py` | F1 create, input validation, priority calculation rules | 19 |
+| `tests/test_workflow.py` | F3 assign, F4 strict status transitions, reopen | 29 |
+| `tests/test_reports.py` | F5 work queue, F6 summary report | 19 |
+| `tests/test_storage.py` | F7 persistence round-trip, normalization, corrupt data handling | 40 |
+| `tests/test_main.py` | CLI menu handlers, single dispatch, startup error handling | 12 |
 
-Priority calculation with all four rules and their boundaries
+## Project Structure
 
-JSON persistence round-trip
-
-Corrupt-data detection (malformed JSON, unknown values, duplicate IDs)
-
-Assignment and status workflow (Engineer B)
-
-Work queue ordering (Engineer B)
-
-Reports (Engineer B)
-
-Priority rules
-Priority is computed by ordinary Python logic — not AI. Rules are checked in
-order; the first match wins:
-
-Rule	Condition	Result
-1	urgency == "high" AND affected_users >= 10	critical
-2	urgency == "high" OR affected_users >= 10	high
-3	urgency == "medium" OR affected_users >= 3	medium
-4	(everything else)	low
-Status workflow
-Three legal transitions:
-
-open → in_progress (only if the ticket is assigned)
-
-in_progress → resolved
-
-resolved → open (reopen; preserves assigned_to)
-
-open → resolved directly is rejected — the ticket must pass through
-in_progress. in_progress → open is rejected — reopen is only from resolved.
-
-Storage
-Tickets are saved to data/tickets.json (git-ignored). The file is created on
-first save. Starting fresh is simply deleting it:
-
-bash
-rm data/tickets.json
-A missing or empty file loads as an empty ticket list (fresh start).
-A malformed file raises CorruptDataError — the app refuses to run
-rather than silently erasing your tickets.
-
-Architecture
-text
+```
 campusflow/
-├── __init__.py         # package marker
-├── errors.py           # CorruptDataError (leaf module)
-├── tickets.py          # validate_ticket_input, calculate_priority, create_ticket
-├── storage.py          # load_tickets, save_tickets
-├── workflow.py         # assign_ticket, change_status, reopen_ticket   (B)
-└── reports.py          # work_queue, build_report                       (B)
-
-tests/
-├── test_tickets.py     # 19 tests   (A)
-├── test_storage.py     # 38 tests   (B)
-├── test_workflow.py    # 29 tests   (B)
-└── test_reports.py     #  9 tests   (B)
-
+  errors.py     CorruptDataError — a leaf module, imports nothing from the project
+  tickets.py    validate_ticket_input, calculate_priority, create_ticket
+  workflow.py   assign_ticket, change_status, reopen_ticket
+  reports.py    work_queue, build_report
+  storage.py    load_tickets, save_tickets
+main.py         CLI menu — one dispatch call per feature, no business logic
+tests/          Complete automated test suite (119 unit tests)
 docs/
-├── design-decisions.md # agreed function contracts and rules
-└── ai-learning-log.md  # per-fellow AI interaction records
-Design decisions
-The full design doc lives at docs/design-decisions.md. It records:
+  design-decisions.md   the frozen contract between the two engineers
+  ai-learning-log.md    AI-assisted learning entries per engineer
+data/tickets.json       the store (git-ignored)
+```
 
-The (ok, payload) error contract
+## Features
 
-The normalization contract (single source of truth for "what valid input is")
+| | Feature | Owner | Implementation |
+|---|---|---|---|
+| F1 | Create a ticket | Engineer A | `campusflow/tickets.py` |
+| F2 | List and view tickets | Shared | `main.py` |
+| F3 | Assign a ticket | Engineer B | `campusflow/workflow.py` |
+| F4 | Change status, reopen | Engineer B | `campusflow/workflow.py` |
+| F5 | Work queue | Engineer B | `campusflow/reports.py` |
+| F6 | Reports | Engineer B | `campusflow/reports.py` |
+| F7 | Persistence | Engineer A | `campusflow/storage.py` |
 
-Function signatures (frozen)
+## How the Pieces Fit Together
 
-Queue ordering rules
+The two modules that everything else depends on are designed around clear invariants:
 
-Module ownership and merge order
+- **Priority is computed once, at creation.** `create_ticket` calls `calculate_priority` and writes the result into the ticket's `priority` field. Nothing downstream re-derives it — `work_queue` reads `ticket["priority"]` and sorts on it. A single source of truth prevents rule divergence across the program.
+- **Tickets are validated at the boundary, then trusted inside.** `load_tickets` is the system normalizer and validator. Malformed JSON, illegal statuses, or missing keys raise `CorruptDataError` immediately at load time. Internal domain functions in `workflow.py` and `reports.py` trust the in-memory structures without defensive duplication.
+- **Return shapes follow Design Decisions §3.** Mutating functions return `(ok, payload)`, where `False` indicates a user-fixable validation message fit to print. Pure read-only projections (`work_queue`, `build_report`) return raw values directly. Structural failures raise `CorruptDataError`.
 
-Known limitations
-No GUI — CLI only by design for the sprint.
+## Priority Engine
 
-main.py (the interactive menu) is on Engineer B's branch, pending merge.
+Priority is computed by ordinary Python logic — not AI. Rules are checked strictly in order; the first match wins:
 
-create_ticket trusts the id key of tickets it receives; load_tickets
-enforces this, so the path is only reachable from hand-built dicts.
+| Rule | Condition | Result |
+|---|---|---|
+| 1 | `urgency == "high" AND affected_users >= 10` | `critical` |
+| 2 | `urgency == "high" OR affected_users >= 10` | `high` |
+| 3 | `urgency == "medium" OR affected_users >= 3` | `medium` |
+| 4 | All remaining valid tickets | `low` |
 
-Priority is not repaired on load if a hand-edited file disagrees with the
-rule table — the stored value wins (single source of truth; see §7 of the
-design doc).
+## Status Workflow
 
-Pull requests
-Engineer A: PR #9 — ticket creation, validation, priority, storage
+Three legal transitions with single entry points:
 
-Engineer B: PR #6, PR #7, PR #8
+- `open -> in_progress` (only if the ticket is assigned)
+- `in_progress -> resolved`
+- `resolved -> open` (reopen; preserves `assigned_to`)
+
+Direct `open -> resolved` and `in_progress -> open` transitions are rejected.
+
+## Storage Contract
+
+- Tickets are persisted as JSON in `data/tickets.json`.
+- A missing or whitespace-only file returns `[]` (fresh start).
+- Missing keys, duplicate IDs (by numeric value), and illegal values raise `CorruptDataError`.
+- IDs are zero-padded to three digits (`"T7"` -> `"T007"`).
+
+## Known Limitations
+
+- **`workflow.py` trusts validated data.** It operates on tickets that `load_tickets` has already normalized and validated at the system boundary.
+- **`change_status` rejects `resolved -> open`.** The contract separates this transition into `reopen_ticket` so the user's explicit intent is clear at the call site.
+- **`create_ticket` trusts `"id"` key on existing tickets.** Hand-built caller dicts missing `"id"` can raise `KeyError`, but tickets loaded via `load_tickets` are guaranteed to have valid IDs.
+- **No CI.** The suite is run by hand, per the Fellows' Guide §4.5 detached-checkout procedure, and the output is recorded in the PRs.
+
+## Pull Requests
+
+| PR | Branch | Closes / Purpose | Status |
+|---|---|---|---|
+| [#9](https://github.com/asobuilds/campusflow-table-5/pull/9) | `feat/1-ticket-creation` | F1 create + priority + F7 storage | Merged |
+| [#7](https://github.com/asobuilds/campusflow-table-5/pull/7) | `feat/2-assign-workflow` | F3 assign + F4 workflow | Merged |
+| [#6](https://github.com/asobuilds/campusflow-table-5/pull/6) | `feat/4-queue-reports` | F5 work queue | Merged |
+| [#8](https://github.com/asobuilds/campusflow-table-5/pull/8) | `feat/5-reports` | F6 summary reports | Merged |
+| [#10](https://github.com/asobuilds/campusflow-table-5/pull/10) | `docs/readme` | Complete documentation & run guide | Open |
+| [#11](https://github.com/asobuilds/campusflow-table-5/pull/11) | `feat/cli-menu` | F2 view + `main.py` CLI menu integration | Pending Review |
+
+Every PR was reviewed by the other engineer from a detached checkout, and approved by someone other than its author — Fellows' Guide §4.5.
