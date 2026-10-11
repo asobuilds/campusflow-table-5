@@ -1,6 +1,6 @@
 """Tests for campusflow.reports — F5 WORK QUEUE.
 
-Covers the acceptance criteria of Issue #4. Contract: docs/design-decisions.md §7.
+Covers the acceptance criteria of Issue #4. Contract: docs/design-decisions.md §3.
 
 Run with: python -m unittest discover -s tests -v
 """

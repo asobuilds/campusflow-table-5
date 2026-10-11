@@ -3,7 +3,8 @@
 Everything in this module is a query: it reads the ticket list and returns a new
 object. Nothing here mutates a ticket or reorders the caller's list.
 
-See docs/design-decisions.md §7 (work queue) and Issue #4 / Issue #5.
+See docs/design-decisions.md §3 (deliberate exception to the (ok, payload) shape)
+and Issue #4 / Issue #5.
 """
 
 # Lower rank sorts first. critical is most urgent, so it gets the lowest number.
