@@ -123,3 +123,15 @@ class TestTicketCreation(unittest.TestCase):
         ok, ticket = create_ticket(tickets, "Valid title", "Network", "  HIGH  ", 1)
         self.assertTrue(ok)
         self.assertEqual(ticket["urgency"], "high")
+
+    def test_validate_returns_two_tuple_with_nested_four_tuple(self):
+        # Pins the exact return shape of validate_ticket_input.
+        # If a caller assumes the wrong shape, this fails and points
+        # at the bug instead of letting it surface at runtime.
+        from campusflow.tickets import validate_ticket_input
+        result = validate_ticket_input("Wi-Fi down", "Network", "high", 5)
+        self.assertEqual(len(result), 2)
+        ok, payload = result
+        self.assertTrue(ok)
+        self.assertEqual(len(payload), 4)
+        self.assertEqual(payload, ("Wi-Fi down", "Network", "high", 5))
