@@ -37,16 +37,14 @@ The CLI reads from and writes to `data/tickets.json`, which is created on first 
 python3 -m unittest discover -s tests -v
 ```
 
-62 tests, in three files, once every branch is merged:
+107 tests across four test files once all feature branches are integrated on `main`:
 
 | File | Covers | Tests |
 |---|---|---|
-| `tests/test_tickets.py` | F1 create, validation, priority engine | 14 |
+| `tests/test_tickets.py` | F1 create, validation, priority engine | 19 |
 | `tests/test_workflow.py` | F3 assign, F4 status transitions, reopen | 29 |
 | `tests/test_reports.py` | F5 work queue, F6 report | 19 |
-| `tests/test_storage.py` | F7 persistence round-trip | *(pending)* |
-
-No single branch contains all 62 — the workflow tests live on `feat/2-assign-workflow` and the queue/report tests on `feat/4-queue-reports` and `feat/5-reports`. Discovery only reports what is on the branch you checked out.
+| `tests/test_storage.py` | F7 persistence round-trip, normalization, corrupt data handling | 40 |
 
 ## Project structure
 
@@ -56,12 +54,12 @@ campusflow/
   tickets.py    validate_ticket_input, calculate_priority, create_ticket
   workflow.py   assign_ticket, change_status, reopen_ticket
   reports.py    work_queue, build_report
-  storage.py    load_tickets, save_tickets        (in progress)
+  storage.py    load_tickets, save_tickets
 main.py         CLI menu — one dispatch call per feature, no business logic
 tests/
 docs/
   design-decisions.md   the frozen contract between the two engineers
-  ai-learning-log.md    three AI-assisted learning entries per engineer
+  ai-learning-log.md    AI-assisted learning entries per engineer
 data/tickets.json       the store (git-ignored)
 ```
 
@@ -95,11 +93,10 @@ The contract both engineers agreed to before writing code is in [`docs/design-de
 
 These are stated rather than hidden, because a reviewer should not have to discover them.
 
-- **`storage.py` is not written yet.** F7 persistence, and the `load_tickets` re-normalization that §2 requires as a defence against hand-edited JSON, have no implementation. Until it lands the app has no on-disk store and cannot be exercised end to end.
-- **`main.py` is not written yet.** The feature modules are currently driven through their tests, not through the menu.
-- **`workflow.py` does not raise `CorruptDataError`.** §1 names it as a module that raises on structurally broken data. It currently trusts tickets that `load_tickets` has already validated, so it can raise a bare `KeyError` where the contract calls for `CorruptDataError`. To be fixed once `errors.py` is on the branch, or recorded here as accepted.
+- **`main.py` is not merged yet.** The feature modules are currently driven through their tests and will be integrated into the CLI menu after feature PR merges.
+- **`workflow.py` trusts validated data.** It operates on tickets that `load_tickets` has already normalized and validated at the system boundary.
 - **`change_status` rejects `resolved -> open`.** §5 lists that as one of exactly three legal edges, but the code reaches it only through `reopen_ticket`. The document itself argues for the split — the call site should say what the user meant — so this is intent, not drift, and it is asserted in `tests/test_workflow.py`.
-- **`affected_users` rejects `2.0`.** A whole-valued float is turned away even though it is a whole number, and the message says "must be a positive whole number". The check and the message disagree.
+- **`create_ticket` trusts `"id"` key on existing tickets.** Hand-built caller dicts missing `"id"` can raise `KeyError`, but tickets loaded via `load_tickets` are guaranteed to have valid IDs.
 - **No CI.** The suite is run by hand, per the Fellows' Guide §4.5 detached-checkout procedure, and the output is recorded in the PRs.
 
 ## Pull requests
@@ -108,7 +105,8 @@ These are stated rather than hidden, because a reviewer should not have to disco
 |---|---|---|
 | [#6](https://github.com/asobuilds/campusflow-table-5/pull/6) | `feat/4-queue-reports` | F5 work queue |
 | [#7](https://github.com/asobuilds/campusflow-table-5/pull/7) | `feat/2-assign-workflow` | F3 + F4 workflow |
-| [#9](https://github.com/asobuilds/campusflow-table-5/pull/9) | `feat/1-ticket-creation` | F1 create + priority |
-| *(link)* | `feat/5-reports` | F6 reports, stacked on #6 |
+| [#8](https://github.com/asobuilds/campusflow-table-5/pull/8) | `feat/5-reports` | F6 reports, stacked on #6 |
+| [#9](https://github.com/asobuilds/campusflow-table-5/pull/9) | `feat/1-ticket-creation` | F1 create + priority + F7 persistence (merged) |
 
 Every PR was reviewed by the other engineer from a detached checkout, and approved by someone other than its author — Fellows' Guide §4.5.
+
