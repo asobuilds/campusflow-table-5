@@ -222,3 +222,8 @@ __marimo__/
 .venv/
 *.pyc
 data/tickets.json
+
+# Local sprint process docs — reference material for the two of us, not project
+# deliverables. Kept uncommitted so they never collide at merge time.
+codingAgent.md
+Learn2Earn*.md
