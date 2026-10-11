@@ -89,13 +89,13 @@ _Feature: F4 (workflow)_
 
 - **My independent experiment/test:** Ran `git diff ebc6797 d62701a -- docs/design-decisions.md`. Output was **empty** — the file is identical across both commits. Then read the document itself off A's branch without checking it out: `git show origin/feat/1-ticket-creation:docs/design-decisions.md`.
 
-- **Verification source or result:** The empty diff, plus the fetched file: §1 Error handling, §2 Normalization contract, §3 Return shape, §4 Mutation model, §5 Function signatures. **No transition section.** The §7 the AI had cited in code comments and in a PR body does not exist.
+- **Verification source or result:** The empty diff, plus the fetched file: §1 Error handling, §2 Normalization contract, §3 Return shape, §4 Mutation model, §5 Function signatures — and it stops there, mid-§5. **No transition section, and no §7.** *Update:* A later reported he had "fixed truncation, complete at §1–§11". Re-ran the same command against `af2765d` and it now returns §1–§11: §5 does contain the transition rules (`Status transitions (STRICT)`), §6 covers assignment on a resolved ticket, and §7 exists — it is "Queue ordering", not the exceptions section. So the AI's §7 citation was wrong either way, but "§7 does not exist" was true only of the truncated copy.
 
-- **Decision:** **Rejected** the AI's characterisation. The rules had been agreed in conversation but were never written into the document, so they existed nowhere either of us could point at. Corrected the §7 citations to §3, wrote the transition rules into `tests/test_workflow.py` as executable assertions, and flagged the gap in the PR body so the reviewer sees it rather than discovering a behavioural difference at merge.
+- **Decision:** **Rejected** the AI's characterisation on the evidence available: what had been pushed to the branch did not contain the rules, so they existed nowhere either of us could point at. Corrected the §7 citations to §3 — which the restored document confirms is where the exceptions live — and wrote the transition rules into `tests/test_workflow.py` as executable assertions rather than waiting on the document. When the restored §5/§6 appeared they were checked against those assertions, and they agree.
 
-- **Related file/commit:** `docs/design-decisions.md`, `tests/test_workflow.py`, `campusflow/workflow.py`, commit `6a7388d`.
+- **Related file/commit:** `docs/design-decisions.md` (§3, §5, §6), `tests/test_workflow.py`, `campusflow/workflow.py`, commit `6a7388d`.
 
-- **What I can now explain without AI:** A design document is only a contract if the rules are actually inside it. "We agreed it" and "it's written down" are different claims, and the second one is checkable with a single command.
+- **What I can now explain without AI:** A design document is only a contract if the rules are actually inside it, and "it's on the branch" is not the same as "it's in my teammate's head". My first check was true but incomplete: I read a truncated file and concluded the rules had never been written down. The lesson is that a claim about a file has a timestamp — when the other person says they changed it, re-read it before repeating what you found.
 
 ### Interaction #3 — Checking that a test catches what it claims to catch
 
