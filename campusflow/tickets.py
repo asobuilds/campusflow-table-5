@@ -77,3 +77,48 @@ def calculate_priority(urgency, affected_users):
     if urgency == "medium" or affected_users >= 3:
         return "medium"
     return "low"
+
+
+def create_ticket(tickets, title, category, urgency, affected_users):
+    """
+    Validates input, generates the next unique ticket ID, computes
+    priority, builds the ticket dict, appends it to `tickets`, and
+    returns (True, ticket_dict).
+
+    On validation failure, returns (False, "message") and does NOT
+    append anything to `tickets`.
+
+    `tickets` is a list of dicts. Each dict is assumed to have an
+    "id" key (load_tickets is responsible for enforcing structure;
+    this function trusts the in-memory list).
+    """
+    result = validate_ticket_input(title, category, urgency, affected_users)
+    if result[0] is False:
+        return (False, result[1])
+
+    _, (title, category, urgency, affected_users) = result
+
+    # Next ID: take the highest existing number and add one. Using max+1
+    # (not len+1) makes this gap-safe: [T001, T003] -> T004, and it can
+    # never collide with an existing id after deletions.
+    if not tickets:
+        new_id = "T001"
+    else:
+        highest = max(int(t["id"][1:]) for t in tickets)
+        new_id = f"T{highest + 1:03d}"
+
+    priority = calculate_priority(urgency, affected_users)
+
+    ticket = {
+        "id": new_id,
+        "title": title,
+        "category": category,
+        "urgency": urgency,
+        "affected_users": affected_users,
+        "priority": priority,
+        "status": "open",
+        "assigned_to": None,
+    }
+
+    tickets.append(ticket)
+    return (True, ticket)
