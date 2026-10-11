@@ -75,10 +75,56 @@ _Feature: F5 (work queue)_
 
 - **What I can now explain without AI:** "T005 comes out first since it first arrived" — the tie is decided by arrival order, not by the ticket ID, so the bare key gives a different queue depending on the order the file happened to be in.
 
-### Interaction #2 — <concept/topic>
+### Interaction #2 — Verifying a claim against the artifact, not the summary
 
-(same template)
+_Feature: F4 (workflow)_
 
-### Interaction #3 — <concept/topic>
+- **Problem:** I needed the exact transition rules before writing `workflow.py`. The AI described them as "the frozen contract, §5/§6/§7 of `docs/design-decisions.md`".
 
-(same template)
+- **My initial understanding:** I assumed that because we had agreed the rules and the document was called frozen, the document contained them. I had never opened it.
+
+- **Prompt to AI:** "fix the §7 reference and start workflow"
+
+- **Useful AI guidance:** Three legal edges — `open → in_progress` (only if assigned), `in_progress → resolved`, `resolved → open` via reopen preserving `assigned_to` — attributed to specific numbered sections of the design document.
+
+- **My independent experiment/test:** Ran `git diff ebc6797 d62701a -- docs/design-decisions.md`. Output was **empty** — the file is identical across both commits. Then read the document itself off A's branch without checking it out: `git show origin/feat/1-ticket-creation:docs/design-decisions.md`.
+
+- **Verification source or result:** The empty diff, plus the fetched file: §1 Error handling, §2 Normalization contract, §3 Return shape, §4 Mutation model, §5 Function signatures. **No transition section.** The §7 the AI had cited in code comments and in a PR body does not exist.
+
+- **Decision:** **Rejected** the AI's characterisation. The rules had been agreed in conversation but were never written into the document, so they existed nowhere either of us could point at. Corrected the §7 citations to §3, wrote the transition rules into `tests/test_workflow.py` as executable assertions, and flagged the gap in the PR body so the reviewer sees it rather than discovering a behavioural difference at merge.
+
+- **Related file/commit:** `docs/design-decisions.md`, `tests/test_workflow.py`, `campusflow/workflow.py`, commit `6a7388d`.
+
+- **What I can now explain without AI:** A design document is only a contract if the rules are actually inside it. "We agreed it" and "it's written down" are different claims, and the second one is checkable with a single command.
+
+### Interaction #3 — Checking that a test catches what it claims to catch
+
+_Feature: F5 (work queue)_
+
+- **Problem:** My tie-break test had two assertions and a docstring explaining that each caught a different bug. I needed to know whether that explanation was true before defending it in review.
+
+- **My initial understanding:** The AI wrote the docstring. I had read it and taken it at face value, without testing the claim.
+
+- **Prompt to AI:** The claim was in an AI-written docstring: that the reversed-arrival-order assertion catches "an implementation that pre-sorts the input by ID". I asked the AI to justify it.
+
+- **Useful AI guidance:** The AI asserted that pre-sorting the input by ID, or otherwise relying on sort stability, is what the second assertion catches.
+
+- **My independent experiment/test:** Predicted the outcome first, then built the implementation the docstring said would fail — pre-sort by numeric ID, then a stable sort by priority only:
+
+  ```python
+  RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+  def variant(tickets):
+      ordered = sorted(tickets, key=lambda t: int(t["id"][1:]))    # pre-sort by ID
+      return sorted(ordered, key=lambda t: RANK[t["priority"]])     # then by priority
+  ```
+
+  Ran it over the tie-break pair in both arrival orders.
+
+- **Verification source or result:** Both arrival orders printed `['T999', 'T1000']`. The variant is correct, so it passes both assertions.
+
+- **Decision:** **Rejected** the docstring's claim. Pre-sorting by ID is not a bug — it produces exactly the same order as the tuple key, just less directly. The reversed-order assertion actually catches a key with **no** tie-break at all (priority only), which returns `T1000` first when the input arrives reversed. Corrected the docstring to say that.
+
+- **Related file/commit:** `tests/test_reports.py`, `test_tie_break_is_numeric_not_lexicographic`, commit `77a1fef`.
+
+- **What I can now explain without AI:** A comment in a test is a claim like any other. Two assertions can look like belt-and-braces while actually testing the same thing; the only way to know which bug each one catches is to build the broken version and watch which line fails.
