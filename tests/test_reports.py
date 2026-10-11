@@ -1,6 +1,7 @@
-"""Tests for campusflow.reports — F5 WORK QUEUE.
+"""Tests for campusflow.reports — F5 WORK QUEUE and F6 REPORTS.
 
-Covers the acceptance criteria of Issue #4. Contract: docs/design-decisions.md §3.
+Covers the acceptance criteria of Issue #4 (queue) and Issue #5 (report).
+Contract: docs/design-decisions.md §3.
 
 Run with: python -m unittest discover -s tests -v
 """
@@ -8,7 +9,7 @@ Run with: python -m unittest discover -s tests -v
 import copy
 import unittest
 
-from campusflow.reports import work_queue
+from campusflow.reports import build_report, work_queue
 
 
 def make_ticket(ticket_id, priority="low", status="open", **overrides):
@@ -149,6 +150,115 @@ class InputFixtureTests(unittest.TestCase):
         self.assertEqual(ticket["id"], "T007")
         self.assertEqual(ticket["priority"], "critical")
         self.assertEqual(ticket["status"], "in_progress")
+
+
+class BuildReportTests(unittest.TestCase):
+    """F6 — build_report. Issue #5.
+
+    The key behaviour is that the report's *shape* does not depend on the data:
+    every known status and priority is always present, so an empty store reports
+    zeroes and a caller never needs .get(key, 0).
+    """
+
+    def test_empty_store_reports_zeroes_for_every_key(self):
+        report = build_report([])
+
+        self.assertEqual(report["total"], 0)
+        self.assertEqual(
+            report["by_status"],
+            {"open": 0, "in_progress": 0, "resolved": 0},
+        )
+        self.assertEqual(
+            report["by_priority"],
+            {"critical": 0, "high": 0, "medium": 0, "low": 0},
+        )
+
+    def test_counts_by_status(self):
+        tickets = [
+            make_ticket("T001", status="open"),
+            make_ticket("T002", status="open"),
+            make_ticket("T003", status="in_progress"),
+            make_ticket("T004", status="resolved"),
+        ]
+
+        self.assertEqual(
+            build_report(tickets)["by_status"],
+            {"open": 2, "in_progress": 1, "resolved": 1},
+        )
+
+    def test_counts_by_priority(self):
+        tickets = [
+            make_ticket("T001", "critical"),
+            make_ticket("T002", "high"),
+            make_ticket("T003", "high"),
+        ]
+
+        self.assertEqual(
+            build_report(tickets)["by_priority"],
+            {"critical": 1, "high": 2, "medium": 0, "low": 0},
+        )
+
+    def test_several_tickets_in_one_status(self):
+        tickets = [make_ticket(f"T{i:03d}", "low", status="open") for i in range(1, 4)]
+
+        self.assertEqual(build_report(tickets)["by_status"]["open"], 3)
+
+    def test_total_matches_the_number_of_tickets(self):
+        tickets = [make_ticket(f"T{i:03d}", "low") for i in range(1, 6)]
+
+        self.assertEqual(build_report(tickets)["total"], 5)
+
+    def test_report_keys_are_exactly_the_known_values(self):
+        """Hardcoded on purpose: importing the constants would make this assert
+        that the constants equal themselves."""
+        report = build_report([])
+
+        self.assertEqual(set(report["by_status"]), {"open", "in_progress", "resolved"})
+        self.assertEqual(set(report["by_priority"]), {"critical", "high", "medium", "low"})
+
+    def test_shape_does_not_change_with_the_data(self):
+        empty = build_report([])
+        populated = build_report([make_ticket("T001", "critical", status="resolved")])
+
+        self.assertEqual(set(empty), set(populated))
+        self.assertEqual(set(empty["by_status"]), set(populated["by_status"]))
+        self.assertEqual(set(empty["by_priority"]), set(populated["by_priority"]))
+
+    def test_status_and_priority_are_counted_independently(self):
+        """Resolved tickets are counted here — unlike in work_queue, the report
+        covers the whole store, not just outstanding work."""
+        tickets = [
+            make_ticket("T001", "critical", status="resolved"),
+            make_ticket("T002", "low", status="resolved"),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(report["by_status"]["resolved"], 2)
+        self.assertEqual(report["by_priority"]["critical"], 1)
+        self.assertEqual(report["by_priority"]["low"], 1)
+
+    def test_input_is_not_mutated(self):
+        tickets = [
+            make_ticket("T001", "critical"),
+            make_ticket("T002", "low", status="resolved"),
+        ]
+        before = copy.deepcopy(tickets)
+
+        build_report(tickets)
+
+        self.assertEqual(tickets, before, "build_report must not modify the input")
+
+    def test_calls_do_not_share_state(self):
+        """If build_report ever returned a module-level template dict, counts
+        would accumulate across calls. Invisible until the second call."""
+        first = build_report([make_ticket("T001", "high", status="open")])
+        second = build_report([make_ticket("T002", "high", status="open")])
+
+        self.assertEqual(first["by_priority"]["high"], 1)
+        self.assertEqual(second["by_priority"]["high"], 1)
+        self.assertIsNot(first["by_status"], second["by_status"])
+        self.assertIsNot(first["by_priority"], second["by_priority"])
 
 
 if __name__ == "__main__":
