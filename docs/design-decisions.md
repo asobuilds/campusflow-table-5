@@ -142,3 +142,34 @@ Check rules IN ORDER. First match wins.
 - Each fellow edits ONLY their own section.
 - Append at the END of your own section so the two sections grow apart, not into each other.
 - If we collide at merge time, follow section 4.6 of the Fellows' Guide: inspect the markers, keep both, resolve on the branch, rerun tests.
+
+### `load_tickets` decision table
+
+`load_tickets` is a **normalizer**, not a strict type validator. Rule:
+accept anything that can be normalized to what `create_ticket` writes;
+reject anything that cannot.
+
+Missing file or empty file -> return `[]` (fresh start, not an error).
+Malformed JSON (syntax) -> raise `CorruptDataError`.
+Top-level JSON not a list -> raise `CorruptDataError`.
+
+Per ticket dict:
+
+| Field | Accept (normalize) | Reject (raise `CorruptDataError`) |
+|-------|--------------------|-----------------------------------|
+| `id` | `^T\d+$`; normalize to `f"T{int(id[1:]):03d}"`. So `"T7"` -> `"T007"`. Uniqueness on `int(id[1:])`, not on the string. | wrong prefix, no digits, lowercase `t`, duplicates by numeric value (`"T7"` and `"T007"` collide), missing |
+| `title` | non-empty string after `.strip()` | `""`, `"   "`, non-string, missing |
+| `category` | case-insensitive match of `network`/`hardware`/`software`/`other`; store canonical (`Network`) | unknown value, non-string, missing |
+| `urgency` | case-insensitive match of `low`/`medium`/`high`; store lowercase | unknown value, non-string, missing |
+| `affected_users` | positive int, or string that parses to positive int | `0`, negative, `2.5`, `True`, `None`, `[]`, `""`, `"seven"`, missing |
+| `priority` | case-insensitive match of `critical`/`high`/`medium`/`low`; store lowercase; **trusted, never recomputed** | unknown value, non-string, missing |
+| `status` | case-insensitive match of `open`/`in_progress`/`resolved`; store lowercase | unknown value, non-string, missing |
+| `assigned_to` | `None`, or non-empty string after `.strip()` | `""`, `"   "`, non-string, missing key |
+
+Implementation note: `load_tickets` reuses `validate_ticket_input` for
+`title`, `category`, `urgency`, `affected_users` — so validation logic
+has a single home shared between `create_ticket` and `load_tickets`.
+The extra checks for `id`, `priority`, `status`, `assigned_to` live in
+`load_tickets` (create_ticket sets them, load_tickets validates them).
+
+Uniqueness of `id` across the loaded file is enforced on `int(id[1:])`.
