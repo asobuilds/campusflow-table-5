@@ -135,3 +135,18 @@ class TestTicketCreation(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(len(payload), 4)
         self.assertEqual(payload, ("Wi-Fi down", "Network", "high", 5))
+
+    def test_new_ticket_has_empty_notes_list(self):
+        # §12.1 — every new ticket starts with notes: [].
+        tickets = []
+        ok, ticket = create_ticket(tickets, "Wi-Fi down", "Network", "high", 3)
+        self.assertTrue(ok)
+        self.assertEqual(ticket["notes"], [])
+        self.assertIsInstance(ticket["notes"], list)
+
+    def test_new_ticket_has_was_reopened_false(self):
+        # §12.9 — every new ticket starts with was_reopened: False.
+        tickets = []
+        ok, ticket = create_ticket(tickets, "Wi-Fi down", "Network", "high", 3)
+        self.assertTrue(ok)
+        self.assertIs(ticket["was_reopened"], False)

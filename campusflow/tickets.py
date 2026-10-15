@@ -112,6 +112,7 @@ def create_ticket(tickets, title, category, urgency, affected_users):
 
     priority = calculate_priority(urgency, affected_users)
 
+    # §12.1 (notes) and §12.9 (was_reopened): a new ticket starts empty.
     ticket = {
         "id": new_id,
         "title": title,
@@ -121,6 +122,8 @@ def create_ticket(tickets, title, category, urgency, affected_users):
         "priority": priority,
         "status": "open",
         "assigned_to": None,
+        "notes": [],
+        "was_reopened": False,
     }
 
     tickets.append(ticket)
