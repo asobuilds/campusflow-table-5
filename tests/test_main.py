@@ -11,12 +11,14 @@ from unittest.mock import patch
 
 from campusflow.errors import CorruptDataError
 from main import (
+    handle_add_note,
     handle_assign_ticket,
     handle_change_status,
     handle_create_ticket,
     handle_list_and_view,
     handle_reopen_ticket,
     handle_summary_report,
+    handle_view_notes,
     handle_work_queue,
     main,
 )
@@ -97,6 +99,8 @@ class TestMainHandlers(unittest.TestCase):
             self.assertIn("Success: T001 reopened", out.getvalue())
             mock_save.assert_called_once()
 
+
+
     def test_handle_work_queue_output(self):
         self.tickets = [
             {"id": "T001", "priority": "low", "status": "open", "title": "Low item"},
@@ -154,6 +158,66 @@ class TestMainAppLoop(unittest.TestCase):
         with patch("sys.stdout", new_callable=io.StringIO) as out, self.assertRaises(SystemExit):
             main()
         self.assertIn("CRITICAL: Failed to load tickets", out.getvalue())
+
+    @patch("builtins.input", side_effect=["T001", "Agene", "Projector checked"])
+    @patch("main.save_tickets")
+    def test_handle_add_note_success(self, mock_save, mock_input):
+        self.tickets = [{"id": "T001", "status": "open", "notes": []}]
+
+        with patch("sys.stdout", new_callable=io.StringIO) as out:
+            handle_add_note(self.tickets)
+
+        self.assertEqual(len(self.tickets[0]["notes"]), 1)
+        self.assertEqual(
+            self.tickets[0]["notes"][0]["author"], "Agene"
+        )
+        self.assertIn("added successfully", out.getvalue())
+        mock_save.assert_called_once()
+
+    @patch("builtins.input", side_effect=["T999", "Agene", "Projector checked"])
+    @patch("main.save_tickets")
+    def test_handle_add_note_unknown_ticket(self, mock_save, mock_input):
+        self.tickets = [{"id": "T001", "status": "open", "notes": []}]
+
+        with patch("sys.stdout", new_callable=io.StringIO) as out:
+            handle_add_note(self.tickets)
+
+        self.assertIn("Error:", out.getvalue())
+        self.assertEqual(self.tickets[0]["notes"], [])
+        mock_save.assert_not_called()
+
+    @patch("builtins.input", side_effect=["T001"])
+    def test_handle_view_notes_success(self, mock_input):
+        self.tickets = [
+            {
+                "id": "T001",
+                "status": "open",
+                "notes": [
+                    {
+                        "note_id": "N001",
+                        "author": "Agene",
+                        "message": "Projector checked",
+                    }
+                ],
+            }
+        ]
+
+        with patch("sys.stdout", new_callable=io.StringIO) as out:
+            handle_view_notes(self.tickets)
+
+        output = out.getvalue()
+        self.assertIn("N001", output)
+        self.assertIn("Agene", output)
+        self.assertIn("Projector checked", output)
+
+    @patch("builtins.input", side_effect=["T001"])
+    def test_handle_view_notes_empty(self, mock_input):
+        self.tickets = [{"id": "T001", "status": "open", "notes": []}]
+
+        with patch("sys.stdout", new_callable=io.StringIO) as out:
+            handle_view_notes(self.tickets)
+
+        self.assertIn("no notes yet", out.getvalue())
 
 
 if __name__ == "__main__":

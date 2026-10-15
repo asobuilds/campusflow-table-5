@@ -12,6 +12,7 @@ from campusflow.reports import build_report, work_queue
 from campusflow.storage import load_tickets, save_tickets
 from campusflow.tickets import create_ticket
 from campusflow.workflow import assign_ticket, change_status, reopen_ticket
+from campusflow.notes import add_note, get_ticket_notes
 
 DATA_PATH = "data/tickets.json"
 
@@ -178,6 +179,60 @@ def handle_summary_report(tickets):
     for priority, count in report["by_priority"].items():
         print(f"  {priority:<15}: {count}")
 
+def handle_add_note(tickets):
+    """F8: Add a note to an existing ticket."""
+    print("\n--- Add Ticket Note ---")
+
+    ticket_id = prompt("Enter ticket ID: ")
+    if ticket_id is None:
+        return
+
+    author = prompt("Enter your name: ")
+    if author is None:
+        return
+
+    message = prompt("Enter note message: ")
+    if message is None:
+        return
+
+    ok, result = add_note(tickets, ticket_id, author, message)
+
+    if not ok:
+        print(f"Error: {result}")
+        return
+
+    # Persist the ticket and its newly added note.
+    save_tickets(tickets)
+
+    print(
+        f"Note {result['note_id']} added successfully "
+        f"to ticket {ticket_id}."
+    )
+
+def handle_view_notes(tickets):
+    """F9: Display notes associated with a ticket."""
+    print("\n--- View Ticket Notes ---")
+
+    ticket_id = prompt("Enter ticket ID: ")
+    if ticket_id is None:
+        return
+
+    ok, result = get_ticket_notes(tickets, ticket_id)
+
+    if not ok:
+        print(f"Error: {result}")
+        return
+
+    if not result:
+        print(f"Ticket {ticket_id} has no notes yet.")
+        return
+
+    print(f"\nNotes for ticket {ticket_id}:")
+
+    for note in result:
+        print(f"\nNote ID: {note['note_id']}")
+        print(f"Author: {note['author']}")
+        print(f"Message: {note['message']}")
 
 def print_menu():
     """Display the main CLI navigation menu."""
@@ -191,6 +246,8 @@ def print_menu():
     print("5. Reopen Resolved Ticket")
     print("6. View Work Queue")
     print("7. Summary Report")
+    print("8. Add Ticket Note")
+    print("9. View Ticket Notes")
     print("0. Exit")
 
 
@@ -207,7 +264,7 @@ def main():
 
     while True:
         print_menu()
-        choice = prompt("Select an option [0-7]: ")
+        choice = prompt("Select an option [0-9]: ")
         if choice is None or choice == "0":
             print("\nSaving tickets and exiting. Goodbye!")
             save_tickets(tickets, DATA_PATH)
@@ -226,6 +283,10 @@ def main():
             handle_work_queue(tickets)
         elif choice == "7":
             handle_summary_report(tickets)
+        elif choice == "8":
+            handle_add_note(tickets)
+        elif choice == "9":
+            handle_view_notes(tickets)
         else:
             print("Invalid selection. Please choose an option from the menu.")
 
