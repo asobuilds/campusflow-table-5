@@ -336,32 +336,43 @@ Save + reload preserves notes and next note ID.
 load_tickets rejects a ticket whose note has a bad shape
 (missing key, bad note_id, blank author, wrong-length message).
 
-12.9 Reopened-ticket counting (open coordination item)
-The report enhancement needs a metric for "reopened tickets". The
-current schema does not record whether a ticket has been reopened.
-Two options under discussion:
+### 12.9 Reopened-ticket tracking — `was_reopened`
 
-Option 1: Add a boolean was_reopened field to the ticket, set to
-True by reopen_ticket. Costs one field; survives save/load.
+**Decision (agreed):** Option 1. Add a boolean field `was_reopened` to
+every ticket.
 
-Option 2: Do not count "reopened" separately — fold into
-"currently open" (a reopened ticket is simply open).
+Semantics:
 
-Decision deferred to a separate mini-discussion before report
-implementation. Whichever is chosen must be recorded in this section
-before report code is written.
+- New tickets are created with `was_reopened: False` (added by
+  `create_ticket` alongside the existing fields).
+- `reopen_ticket` sets `ticket["was_reopened"] = True`. **The flag is
+  sticky** — it never returns to `False`, even if the ticket is later
+  resolved and reopened again. It answers "has this ticket ever been
+  reopened at least once?", which is the metric the Head of Campus wants.
+- The report counts tickets where `was_reopened is True`, regardless of
+  their current status.
 
-text
+**`load_tickets` compatibility rule (deliberate exception to §2):**
 
----
+- If a ticket dict **lacks** the `was_reopened` key, this is a legacy
+  ticket from before this sprint. Treat it as `False` and add the field
+  during load. Do NOT raise.
+- If `was_reopened` is present but is **not a `bool`**, raise
+  `CorruptDataError`. A non-bool value is corruption, not legacy data.
 
-## Step 3 — Save and verify
+**Why this is an exception:** §2 says a missing required key raises
+`CorruptDataError`. That rule protects against silent data loss for
+keys that were always meant to be there. `was_reopened` is a new field
+added to an existing schema — old files legitimately lack it. Defaulting
+to `False` on load preserves the old data instead of refusing to run.
+Every other missing key still raises. This exception is documented here
+so it is not mistaken for drift.
 
-Press `Ctrl+S`.
+**Fields summary after this sprint:**
 
-Then in the terminal:
+A ticket dict has exactly these keys:
 
-```bash
-wc -l docs/design-decisions.md
-grep -c "^## " docs/design-decisions.md
-tail -5 docs/design-decisions.md
+- `id`, `title`, `category`, `urgency`, `affected_users`,
+  `priority`, `status`, `assigned_to` — the original eight from §2.
+- `notes` — a list of note dicts (§12.1).
+- `was_reopened` — a boolean (§12.9).
