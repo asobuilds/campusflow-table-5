@@ -173,3 +173,217 @@ The extra checks for `id`, `priority`, `status`, `assigned_to` live in
 `load_tickets` (create_ticket sets them, load_tickets validates them).
 
 Uniqueness of `id` across the loaded file is enforced on `int(id[1:])`.
+
+## 12. CampusFlow Next — Structured follow-up notes
+
+Added in the CampusFlow Next sprint. Extends §1–§11 without changing them.
+
+### 12.1 Note schema
+
+Every ticket carries a `notes` field — a list of note dicts. Newly created
+tickets start with `notes: []`.
+
+A note is a dict with exactly three keys:
+
+```python
+{
+    "note_id": "N001",
+    "author":  "Mentor A",
+    "message": "Wi-Fi router reboot attempted",
+}
+
+note_id — string matching ^N\d+$. Per-ticket sequence. First note on a
+ticket is N001, second is N002. Each ticket has its own sequence —
+T002's first note is also N001. A note is identified by the pair
+(ticket_id, note_id).
+
+author — non-empty string after .strip().
+
+message — string of length 5–300 inclusive after .strip().
+
+12.2 Function contracts
+python
+# notes.py  (Engineer A)
+add_note(tickets, ticket_id, author, message)      -> (True, note_dict) | (False, message_str)
+get_ticket_notes(tickets, ticket_id)               -> (True, list[dict]) | (False, message_str)
+next_note_id(ticket)                               -> str
+12.3 add_note — validation and behavior
+Returns (True, note) on success, (False, message) on any user-fixable failure.
+
+Checks in this order — return the FIRST failure:
+
+ticket_id not found → (False, "No ticket with ID {ticket_id}.")
+
+ticket["status"] == "resolved" → (False, "Cannot add a note to a resolved ticket; reopen it first.")
+
+author not a string, or blank after .strip() → (False, "Author cannot be blank.")
+
+message not a string, or length < 5 after .strip() → (False, "Message must be at least 5 characters.")
+
+message length > 300 after .strip() → (False, "Message must be at most 300 characters.")
+
+On success:
+
+Compute new_id = next_note_id(ticket).
+
+Build the note dict.
+
+Append it to ticket["notes"].
+
+Return (True, note).
+
+ID-continuity invariant: a failed add_note must NOT modify
+ticket["notes"] and must NOT consume the next note ID. The next
+successful add_note on the same ticket uses the same number that
+would have been used by the failed call.
+
+No partial mutation: on any failure, tickets, ticket, and
+ticket["notes"] are unchanged. Return the error and stop.
+
+12.4 get_ticket_notes — shape and rationale
+get_ticket_notes(tickets, ticket_id) -> (True, list[dict]) | (False, message)
+
+Ticket not found → (False, "No ticket with ID {ticket_id}.")
+
+Ticket found, zero notes → (True, [])
+
+Ticket found, notes present → (True, [<note>, ...]) in note-ID order.
+
+Rationale for the (ok, payload) shape (deliberate, not accidental):
+
+work_queue and build_report return bare lists/dicts because they take
+no user-typed input and cannot fail. get_ticket_notes takes a
+user-typed ID, so a mistyped ID is a real user error. A bare-list return
+would make "ticket doesn't exist" indistinguishable from "ticket exists
+but has no notes" — both would return [], and the CLI could not tell
+the user which case applied.
+
+This is a deliberate use of §3's (ok, payload) convention, not an
+exception to it.
+
+**Copy depth:** the returned list is a shallow copy. Callers must not
+mutate the returned note dicts; if a caller needs to modify a note,
+it must `copy.deepcopy` itself. The current CLI only reads.
+
+12.5 next_note_id(ticket)
+Pure helper. Returns f"N{n:03d}" where n is
+max(int(existing_note["note_id"][1:]) for existing_note in ticket["notes"]) + 1,
+or 1 if ticket["notes"] is empty.
+
+Uses max+1 — not len+1 — for the same reason ticket IDs do
+(see create_ticket). A note deleted from the list must not cause
+the next note to reuse an old ID.
+
+12.6 Status rules
+Only tickets with status in {"open", "in_progress"} accept new notes.
+A resolved ticket rejects note addition with a message that points at
+reopen_ticket. After reopening, the ticket's status is open again,
+and notes are accepted — no special-case code, the check falls out of
+the current status.
+
+Notes are preserved through resolve and reopen. Reopening does
+not clear ticket["notes"].
+
+12.7 Storage obligations
+save_tickets writes the extended ticket dict (including notes).
+
+load_tickets must validate notes for every ticket on load:
+
+notes key present, value is a list.
+
+Every note is a dict with keys note_id, author, message.
+
+note_id matches ^N\d+$.
+
+note_id unique within a ticket (by int(note_id[1:]), mirroring the
+ticket-ID rule in §2).
+
+author non-empty after .strip().
+
+message length 5–300 after .strip().
+
+Any violation raises CorruptDataError and the entire load fails —
+current in-memory state is not replaced. This is the same
+validate-before-replace rule as §2.
+
+**Priority is not re-derived on load.** `load_tickets` validates that
+`priority` is one of the four legal strings, but does **not** verify it
+matches `urgency` + `affected_users`. Priority is a historical value: a
+ticket reflects the priority rule in effect when the ticket was created.
+Recomputing on load would silently re-write history if thresholds ever
+changed. This is the same single-source-of-truth rule as §7.
+
+12.8 Tests
+Required test cases for notes:
+
+Add note to an open ticket — success, note ID is N001.
+
+Add a second note to the same ticket — note ID is N002.
+
+Add a note to a ticket with a gap in note IDs — next ID is max+1.
+
+Reject a note on a resolved ticket — no state change.
+
+After reopen, a note can be added — status is open.
+
+Reject a blank author — no state change, no ID consumed.
+
+Reject a message shorter than 5 chars — no state change.
+
+Reject a message longer than 300 chars — no state change.
+
+Reject a note for an unknown ticket ID — no state change.
+
+Failed attempt does not consume the next note ID: fail one attempt,
+then succeed; the successful note should carry the ID that the failed
+attempt would have used.
+
+get_ticket_notes on a valid ticket with no notes returns (True, []).
+
+get_ticket_notes on a nonexistent ticket returns (False, msg).
+
+Save + reload preserves notes and next note ID.
+
+load_tickets rejects a ticket whose note has a bad shape
+(missing key, bad note_id, blank author, wrong-length message).
+
+### 12.9 Reopened-ticket tracking — `was_reopened`
+
+**Decision (agreed):** Option 1. Add a boolean field `was_reopened` to
+every ticket.
+
+Semantics:
+
+- New tickets are created with `was_reopened: False` (added by
+  `create_ticket` alongside the existing fields).
+- `reopen_ticket` sets `ticket["was_reopened"] = True`. **The flag is
+  sticky** — it never returns to `False`, even if the ticket is later
+  resolved and reopened again. It answers "has this ticket ever been
+  reopened at least once?", which is the metric the Head of Campus wants.
+- The report counts tickets where `was_reopened is True`, regardless of
+  their current status.
+
+**`load_tickets` compatibility rule (deliberate exception to §2):**
+
+- If a ticket dict **lacks** the `was_reopened` key, this is a legacy
+  ticket from before this sprint. Treat it as `False` and add the field
+  during load. Do NOT raise.
+- If `was_reopened` is present but is **not a `bool`**, raise
+  `CorruptDataError`. A non-bool value is corruption, not legacy data.
+
+**Why this is an exception:** §2 says a missing required key raises
+`CorruptDataError`. That rule protects against silent data loss for
+keys that were always meant to be there. `was_reopened` is a new field
+added to an existing schema — old files legitimately lack it. Defaulting
+to `False` on load preserves the old data instead of refusing to run.
+Every other missing key still raises. This exception is documented here
+so it is not mistaken for drift.
+
+**Fields summary after this sprint:**
+
+A ticket dict has exactly these keys:
+
+- `id`, `title`, `category`, `urgency`, `affected_users`,
+  `priority`, `status`, `assigned_to` — the original eight from §2.
+- `notes` — a list of note dicts (§12.1).
+- `was_reopened` — a boolean (§12.9).

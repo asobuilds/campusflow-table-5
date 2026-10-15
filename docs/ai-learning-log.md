@@ -74,6 +74,112 @@ What I can now explain without AI: A return value like `(ok, payload)` where `pa
 
 ---
 
+### Interaction #4 — Test fixture drift when a schema field becomes required
+
+Problem: After extending `load_tickets` to require the new `notes` key
+per §12.1, fourteen of the existing storage tests failed with
+`CorruptDataError: Ticket missing required key: notes`. The production
+code was correct — every test that planted a ticket fixture built it
+without `notes`.
+
+My initial understanding: I assumed the failures meant `load_tickets`
+had a bug in the new notes handling, or that the `notes` key should be
+optional for legacy compatibility.
+
+Prompt to AI: "These 14 storage tests now fail after I made `notes` a
+required key. I need to know whether the fix belongs in the loader or
+in the tests. Explain how to tell which layer owns the failure, without
+rewriting either."
+
+Useful AI guidance: The distinction is ownership of the fixture. The
+loader's contract is documented (§12.1: `notes` is required on every
+ticket). The tests exist to verify the loader obeys its contract, not
+to invent a different one. When a schema field is added, every fixture
+that constructs that schema must be updated. Centralized helpers make
+this one edit instead of fourteen.
+
+My independent experiment/test: Found that all 14 failing tests built
+their fixtures via a single module-level helper, `raw_ticket()`, at
+`tests/test_storage.py:49`. Confirmed by `grep -n '"id":' tests/test_storage.py`
+that the only other ticket-dict construction was my own `_ticket()`
+inside `NotesStorageTests`, which already had the new keys. Fix was two
+lines added to `raw_ticket()`.
+
+Verification source or result: Re-ran `python3 -m unittest discover -s
+tests -v` after the fix → `Ran 150 tests ... OK`.
+
+Decision: Accepted and applied. Do NOT make `notes` optional in the
+loader — that would contradict §12.1 and would leave `add_note` open
+to a KeyError on `ticket["notes"]` for any hand-crafted dict.
+
+Related file/commit: `tests/test_storage.py:49` (`raw_ticket` helper);
+commit `745cf79`.
+
+What I can now explain without AI: When a required schema field is
+added, the failure surfaces wherever fixtures are built, not in the
+production code. The design doc decides which side is right; the fix
+goes on the side that disagrees with the doc. One centralized fixture
+helper means one edit, not N.
+
+### Interaction #5 — Deliberate schema exception: required vs. legacy-compatible keys
+
+Problem: §12.1 makes `notes` required on every ticket. §12.9 makes
+`was_reopened` tolerant of absence for legacy files. On the surface
+these look contradictory — two new fields with opposite missing-key
+rules. I needed to understand why the exception is legitimate rather
+than drift.
+
+My initial understanding: A missing key should always raise, per §2
+("Unknown value OR missing key → raise CorruptDataError"). The
+`was_reopened` exception felt like a special case someone had carved
+out.
+
+Prompt to AI: "Explain the difference between a schema field that was
+always expected to be there but is missing (corruption) versus a
+schema field that is genuinely new (legacy compat). Give a small
+example using an unrelated data format."
+
+Useful AI guidance: The question to ask of a missing key is: *could a
+correctly behaving older version of the software have produced a file
+without this key?* If yes, absence is legacy data and the loader must
+tolerate it with a documented default. If no, absence is corruption and
+the loader must raise. `notes` was never written by any version that
+did not know about notes — its absence is corruption. `was_reopened`
+is new; files written before this sprint legitimately lack it. The
+difference is not "new vs. old" — it is "could an honest writer have
+omitted this?"
+
+My independent experiment/test: Confirmed with a small unrelated test:
+a JSON file representing a "product" with a new `currency` field
+defaulting to `"USD"` when absent, versus a missing `price` field which
+raises. Also confirmed in this project by adding
+`test_legacy_ticket_without_was_reopened_loads_as_false` (§12.9
+behavior, passes) and `test_notes_field_missing_raises` (§12.1
+behavior, passes). The two tests together pin the exception.
+
+Verification source or result: `docs/design-decisions.md` §12.9 —
+"Every other missing key still raises. This exception is documented
+here so it is not mistaken for drift." Tests:
+`test_legacy_ticket_without_was_reopened_loads_as_false`,
+`test_notes_field_missing_raises`, `test_non_bool_was_reopened_raises`.
+
+Decision: Accepted as designed. The exception is not drift because the
+design doc explicitly names it, explains its scope ("this key only,
+missing only"), and pairs it with a negative test on the other side
+(the notes case). One-way tolerance without a negative counterpart
+would be drift.
+
+Related file/commit: `docs/design-decisions.md` §12.9; commits
+`434b2a8` (doc) and `745cf79` (loader).
+
+What I can now explain without AI: The test for whether a missing key
+should raise is: "could a correct prior version of the software have
+written this file without that key?" If yes → documented default. If
+no → raise. The design doc must name every default explicitly, and
+each default must be paired with a test on the "should raise" side of
+the adjacent field, so the exception cannot silently grow.
+
+
 ## Fellow: Eyung (Engineer B)
 
 ### Interaction #1 — Sorting with keys, tie-breaking, and numeric ticket IDs
