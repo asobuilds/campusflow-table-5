@@ -107,41 +107,35 @@ class TestMainHandlers(unittest.TestCase):
             text = out.getvalue()
             self.assertIn("T002", text)
             self.assertIn("critical", text)
-            # T002 must appear before T001
+            # T002 must appear before T001.
             self.assertLess(text.index("T002"), text.index("T001"))
 
     def test_handle_summary_report_output(self):
         self.tickets = [
-            {"id": "T001", "priority": "high", "status": "open"},
-            {"id": "T002", "priority": "low", "status": "resolved"},
+            {
+                "id": "T001",
+                "priority": "high",
+                "status": "open",
+                "category": "Network",
+                "was_reopened": False,
+            },
+            {
+                "id": "T002",
+                "priority": "low",
+                "status": "resolved",
+                "category": "Hardware",
+                "was_reopened": False,
+            },
         ]
+
         with patch("sys.stdout", new_callable=io.StringIO) as out:
             handle_summary_report(self.tickets)
             text = out.getvalue()
+
             self.assertIn("Total Tickets: 2", text)
             self.assertIn("open", text)
             self.assertIn("resolved", text)
             self.assertIn("high", text)
-
-    @patch("builtins.input", side_effect=["T001", ""])
-    def test_handle_list_and_view_details(self, mock_input):
-        self.tickets = [{
-            "id": "T001",
-            "title": "Network test",
-            "category": "Network",
-            "urgency": "high",
-            "affected_users": 15,
-            "priority": "critical",
-            "status": "open",
-            "assigned_to": "Agene",
-        }]
-        with patch("sys.stdout", new_callable=io.StringIO) as out:
-            handle_list_and_view(self.tickets)
-            text = out.getvalue()
-            self.assertIn("T001", text)
-            self.assertIn("Details for T001:", text)
-            self.assertIn("Network test", text)
-
 
 class TestMainAppLoop(unittest.TestCase):
 

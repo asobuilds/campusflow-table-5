@@ -41,30 +41,40 @@ def work_queue(tickets):
 
 
 def build_report(tickets):
-    """Summarise the whole ticket store: a total, and counts by status and priority.
+    """Return ticket totals and breakdowns without modifying the input.
 
-    Every known status and priority is a key even when its count is zero, so the
-    shape of the report does not change with the data. An empty store reports
-    zeroes rather than an empty dict, and a caller never needs .get(key, 0).
-
-    Counts are incremented through the whitelists above, so a ticket carrying an
-    unrecognised status or priority raises KeyError instead of silently creating
-    a new key for it — same rule as work_queue, for the same reason.
-
-    tickets is assumed to be already validated by load_tickets.
-
-    Returns a new dict. The input list is not modified, and nothing is shared
-    between calls.
+    Includes counts by status, priority, and category; unresolved and
+    resolved totals; resolution percentage; and tickets ever reopened.
+    Empty stores return zero counts and a 0.0 resolution percentage.
     """
+
     by_status = {status: 0 for status in STATUSES}
     by_priority = {priority: 0 for priority in PRIORITIES}
+
+    categories = ("Network", "Hardware", "Software", "Other")
+    by_category = {category: 0 for category in categories}
 
     for ticket in tickets:
         by_status[ticket["status"]] += 1
         by_priority[ticket["priority"]] += 1
+        by_category[ticket["category"]] += 1
+
+    total = len(tickets)
+    resolved = by_status["resolved"]
+    unresolved = by_status["open"] + by_status["in_progress"]
+
+    # Avoid division by zero when there are no tickets.
+    resolution_percentage = (
+        resolved / total * 100 if total else 0.0
+    )
 
     return {
-        "total": len(tickets),
+        "total": total,
         "by_status": by_status,
         "by_priority": by_priority,
+        "by_category": by_category,
+        "unresolved": unresolved,
+        "resolved": resolved,
+        "resolution_percentage": resolution_percentage,
+        "reopened": sum(1 for ticket in tickets if ticket["was_reopened"]),
     }
