@@ -136,6 +136,37 @@ class GetTicketNotesTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIsInstance(msg, str)
 
+    def test_notes_are_returned_sorted_by_numeric_note_id(self):
+        # §12.4 — get_ticket_notes returns notes in numeric note_id order.
+        # A hand-edited file can have them out of order; the API must not.
+        tickets = [make_ticket()]
+        tickets[0]["notes"] = [
+            {"note_id": "N003", "author": "C", "message": "third message here"},
+            {"note_id": "N001", "author": "A", "message": "first message here"},
+            {"note_id": "N002", "author": "B", "message": "second message here"},
+        ]
+        ok, notes = get_ticket_notes(tickets, "T001")
+        self.assertTrue(ok)
+        self.assertEqual(
+            [n["note_id"] for n in notes],
+            ["N001", "N002", "N003"],
+        )
+
+    def test_notes_sorted_numerically_not_lexicographically(self):
+        # N10 sorts after N9, not after N1. Numeric comparison required.
+        tickets = [make_ticket()]
+        tickets[0]["notes"] = [
+            {"note_id": "N010", "author": "Ten", "message": "tenth message here"},
+            {"note_id": "N002", "author": "Two", "message": "second message here"},
+            {"note_id": "N001", "author": "One", "message": "first message here"},
+        ]
+        ok, notes = get_ticket_notes(tickets, "T001")
+        self.assertTrue(ok)
+        self.assertEqual(
+            [n["note_id"] for n in notes],
+            ["N001", "N002", "N010"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

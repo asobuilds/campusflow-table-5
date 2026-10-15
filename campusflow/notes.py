@@ -98,8 +98,10 @@ def get_ticket_notes(tickets, ticket_id):
     Return the notes of the ticket whose "id" == ticket_id.
 
     Returns:
-        (True, list_of_note_dicts) — a shallow copy, so the caller cannot
-            mutate the ticket's internal list.
+        (True, list_of_note_dicts) — sorted by numeric note_id, so the
+            order is deterministic even if a hand-edited file stored
+            notes out of order. The list is a shallow copy, so the
+            caller cannot mutate the ticket's internal list.
         (False, "No ticket with ID {ticket_id}.") when no ticket matches.
 
     The (ok, payload) shape is deliberate (§12.4): ticket_id is user-typed,
@@ -110,4 +112,5 @@ def get_ticket_notes(tickets, ticket_id):
     ticket = _find_ticket(tickets, ticket_id)
     if ticket is None:
         return (False, f"No ticket with ID {ticket_id}.")
-    return (True, list(ticket["notes"]))
+    ordered = sorted(ticket["notes"], key=lambda n: int(n["note_id"][1:]))
+    return (True, ordered)
