@@ -28,6 +28,7 @@ def make_ticket(ticket_id, priority="low", status="open", **overrides):
         "priority": priority,
         "status": status,
         "assigned_to": None,
+        "was_reopened": False,
     }
     ticket.update(overrides)
     return ticket
@@ -142,6 +143,7 @@ class InputFixtureTests(unittest.TestCase):
         expected = {
             "id", "title", "category", "urgency",
             "affected_users", "priority", "status", "assigned_to",
+            "was_reopened",
         }
         self.assertEqual(set(make_ticket("T001").keys()), expected)
 
@@ -260,6 +262,126 @@ class BuildReportTests(unittest.TestCase):
         self.assertIsNot(first["by_status"], second["by_status"])
         self.assertIsNot(first["by_priority"], second["by_priority"])
 
+class ExtendedReportTests(unittest.TestCase):
+
+    def test_counts_by_category(self):
+        tickets = [
+            make_ticket("T001", category="Network"),
+            make_ticket("T002", category="Hardware"),
+            make_ticket("T003", category="Network"),
+            make_ticket("T004", category="Software"),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(
+            report["by_category"],
+            {
+                "Network": 2,
+                "Hardware": 1,
+                "Software": 1,
+                "Other": 0,
+            },
+        )
+
+    def test_counts_unresolved_tickets(self):
+        tickets = [
+            make_ticket("T001", status="open"),
+            make_ticket("T002", status="in_progress"),
+            make_ticket("T003", status="resolved"),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(report["unresolved"], 2)
+
+    def test_counts_resolved_tickets(self):
+        tickets = [
+            make_ticket("T001", status="resolved"),
+            make_ticket("T002", status="open"),
+            make_ticket("T003", status="resolved"),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(report["resolved"], 2)
+
+    def test_calculates_resolution_percentage(self):
+        tickets = [
+            make_ticket("T001", status="resolved"),
+            make_ticket("T002", status="resolved"),
+            make_ticket("T003", status="open"),
+            make_ticket("T004", status="in_progress"),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(report["resolution_percentage"], 50.0)
+
+    def test_empty_store_has_zero_resolution_percentage(self):
+        report = build_report([])
+
+        self.assertEqual(report["resolution_percentage"], 0.0)
+
+    def test_counts_tickets_that_were_reopened(self):
+        tickets = [
+            make_ticket("T001", status="open", was_reopened=False),
+            make_ticket("T002", status="open", was_reopened=True),
+            make_ticket("T003", status="resolved", was_reopened=True),
+            make_ticket("T004", status="in_progress", was_reopened=False),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(report["reopened"], 2)
+
+    def test_reopened_count_is_zero_when_no_tickets_were_reopened(self):
+        tickets = [
+            make_ticket("T001", status="open", was_reopened=False),
+            make_ticket("T002", status="resolved", was_reopened=False),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(report["reopened"], 0)
+
+    def test_empty_store_has_zero_reopened_tickets(self):
+        report = build_report([])
+
+        self.assertEqual(report["reopened"], 0)
+
+    def test_report_combines_all_metrics(self):
+        tickets = [
+            make_ticket(
+                "T001",
+                category="Network",
+                priority="high",
+                status="resolved",
+                was_reopened=True,
+            ),
+            make_ticket(
+                "T002",
+                category="Hardware",
+                priority="low",
+                status="in_progress",
+            ),
+            make_ticket(
+                "T003",
+                category="Network",
+                priority="medium",
+                status="open",
+            ),
+        ]
+
+        report = build_report(tickets)
+
+        self.assertEqual(report["total"], 3)
+        self.assertEqual(report["resolved"], 1)
+        self.assertEqual(report["unresolved"], 2)
+        self.assertAlmostEqual(report["resolution_percentage"], 100 / 3)
+        self.assertEqual(report["by_category"]["Network"], 2)
+        self.assertEqual(report["by_category"]["Hardware"], 1)
+        self.assertEqual(report["reopened"], 1)
 
 if __name__ == "__main__":
     unittest.main()
