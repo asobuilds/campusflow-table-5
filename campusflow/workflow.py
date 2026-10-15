@@ -127,4 +127,5 @@ def reopen_ticket(tickets, ticket_id):
         )
 
     ticket["status"] = "open"
+    ticket["was_reopened"] = True
     return True, ticket
