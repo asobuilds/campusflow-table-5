@@ -442,6 +442,15 @@ class LoadTicketsNormalizationTests(StorageTestCase):
         self.write_raw([raw_ticket("T7")])
         self.assertEqual(load_tickets(self.path)[0]["id"], "T007")
 
+    def test_priority_disagreement_with_rules_is_preserved_not_recomputed(self):
+        # §7 + §12.7 — stored priority is authoritative, never re-derived.
+        # A hand-edited ticket whose priority disagrees with the current
+        # urgency/affected_users rules loads UNCHANGED.
+        t = raw_ticket(urgency="high", affected_users=12, priority="low")
+        self.write_raw([t])
+        loaded = load_tickets(self.path)
+        self.assertEqual(loaded[0]["priority"], "low")
+
 
 
 class SaveTicketsTests(StorageTestCase):

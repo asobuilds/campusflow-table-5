@@ -261,6 +261,10 @@ the user which case applied.
 This is a deliberate use of §3's (ok, payload) convention, not an
 exception to it.
 
+**Copy depth:** the returned list is a shallow copy. Callers must not
+mutate the returned note dicts; if a caller needs to modify a note,
+it must `copy.deepcopy` itself. The current CLI only reads.
+
 12.5 next_note_id(ticket)
 Pure helper. Returns f"N{n:03d}" where n is
 max(int(existing_note["note_id"][1:]) for existing_note in ticket["notes"]) + 1,
@@ -301,6 +305,13 @@ message length 5–300 after .strip().
 Any violation raises CorruptDataError and the entire load fails —
 current in-memory state is not replaced. This is the same
 validate-before-replace rule as §2.
+
+**Priority is not re-derived on load.** `load_tickets` validates that
+`priority` is one of the four legal strings, but does **not** verify it
+matches `urgency` + `affected_users`. Priority is a historical value: a
+ticket reflects the priority rule in effect when the ticket was created.
+Recomputing on load would silently re-write history if thresholds ever
+changed. This is the same single-source-of-truth rule as §7.
 
 12.8 Tests
 Required test cases for notes:

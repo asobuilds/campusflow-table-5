@@ -112,5 +112,7 @@ def get_ticket_notes(tickets, ticket_id):
     ticket = _find_ticket(tickets, ticket_id)
     if ticket is None:
         return (False, f"No ticket with ID {ticket_id}.")
+    # Shallow copy of the list, sorted by numeric note_id. Callers must
+    # not mutate the note dicts (see §12.4). The CLI only reads.
     ordered = sorted(ticket["notes"], key=lambda n: int(n["note_id"][1:]))
     return (True, ordered)
