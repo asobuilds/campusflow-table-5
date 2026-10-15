@@ -61,10 +61,11 @@ def raw_ticket(ticket_id="T001", **overrides):
         "priority": "high",
         "status": "open",
         "assigned_to": None,
+        "notes": [],
+        "was_reopened": False,
     }
     ticket.update(overrides)
     return ticket
-
 
 class StorageTestCase(unittest.TestCase):
 
@@ -441,6 +442,15 @@ class LoadTicketsNormalizationTests(StorageTestCase):
         self.write_raw([raw_ticket("T7")])
         self.assertEqual(load_tickets(self.path)[0]["id"], "T007")
 
+    def test_priority_disagreement_with_rules_is_preserved_not_recomputed(self):
+        # §7 + §12.7 — stored priority is authoritative, never re-derived.
+        # A hand-edited ticket whose priority disagrees with the current
+        # urgency/affected_users rules loads UNCHANGED.
+        t = raw_ticket(urgency="high", affected_users=12, priority="low")
+        self.write_raw([t])
+        loaded = load_tickets(self.path)
+        self.assertEqual(loaded[0]["priority"], "low")
+
 
 
 class SaveTicketsTests(StorageTestCase):
@@ -540,3 +550,120 @@ class StorageIntegrationTests(StorageTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class NotesStorageTests(StorageTestCase):
+    """Tests for the CampusFlow Next notes and was_reopened schema (§12.7, §12.9)."""
+
+    def _write(self, tickets):
+        """Write a list of ticket dicts to a temp file, return the path."""
+        import json
+        with open(self.path, "w") as f:
+            json.dump(tickets, f)
+        return self.path
+
+    def _ticket(self, **overrides):
+        """Base ticket with notes and was_reopened. Override any field."""
+        base = {
+            "id": "T001",
+            "title": "Wi-Fi down",
+            "category": "Network",
+            "urgency": "high",
+            "affected_users": 12,
+            "priority": "critical",
+            "status": "open",
+            "assigned_to": None,
+            "notes": [],
+            "was_reopened": False,
+        }
+        base.update(overrides)
+        return base
+
+    # --- was_reopened legacy compatibility (§12.9 exception) ---
+
+    def test_legacy_ticket_without_was_reopened_loads_as_false(self):
+        # §12.9: a missing was_reopened key is legacy data, default to False.
+        # This is a DELIBERATE exception to §2's "missing key = raise" rule.
+        legacy = self._ticket()
+        del legacy["was_reopened"]
+        loaded = load_tickets(self._write([legacy]))
+        self.assertEqual(loaded[0]["was_reopened"], False)
+
+    def test_was_reopened_true_loads_unchanged(self):
+        loaded = load_tickets(self._write([self._ticket(was_reopened=True)]))
+        self.assertIs(loaded[0]["was_reopened"], True)
+
+    def test_non_bool_was_reopened_raises(self):
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(was_reopened="yes")]))
+
+    # --- notes validation (§12.7) ---
+
+    def test_empty_notes_list_loads_cleanly(self):
+        loaded = load_tickets(self._write([self._ticket(notes=[])]))
+        self.assertEqual(loaded[0]["notes"], [])
+
+    def test_valid_note_loads_cleanly(self):
+        note = {"note_id": "N001", "author": "Mentor A",
+                "message": "Wi-Fi router reboot attempted"}
+        loaded = load_tickets(self._write([self._ticket(notes=[note])]))
+        self.assertEqual(len(loaded[0]["notes"]), 1)
+        self.assertEqual(loaded[0]["notes"][0]["note_id"], "N001")
+
+    def test_note_missing_note_id_raises(self):
+        bad_note = {"author": "Mentor A", "message": "Wi-Fi router reboot attempted"}
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(notes=[bad_note])]))
+
+    def test_note_id_wrong_prefix_raises(self):
+        bad_note = {"note_id": "X001", "author": "Mentor A",
+                    "message": "Wi-Fi router reboot attempted"}
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(notes=[bad_note])]))
+
+    def test_duplicate_note_ids_within_a_ticket_raise(self):
+        notes = [
+            {"note_id": "N001", "author": "A", "message": "first message here"},
+            {"note_id": "N001", "author": "B", "message": "second message here"},
+        ]
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(notes=notes)]))
+
+    def test_note_with_blank_author_raises(self):
+        bad_note = {"note_id": "N001", "author": "   ",
+                    "message": "Wi-Fi router reboot attempted"}
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(notes=[bad_note])]))
+
+    def test_note_with_short_message_raises(self):
+        bad_note = {"note_id": "N001", "author": "A", "message": "abc"}
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(notes=[bad_note])]))
+
+    def test_note_with_long_message_raises(self):
+        bad_note = {"note_id": "N001", "author": "A", "message": "x" * 301}
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(notes=[bad_note])]))
+
+    def test_notes_field_missing_raises(self):
+        # notes is a NEW required field (unlike was_reopened).
+        # A ticket without notes is corrupt, not legacy.
+        legacy = self._ticket()
+        del legacy["notes"]
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([legacy]))
+
+    def test_notes_field_not_a_list_raises(self):
+        with self.assertRaises(CorruptDataError):
+            load_tickets(self._write([self._ticket(notes="not a list")]))
+
+    # --- Round-trip ---
+
+    def test_save_and_load_preserves_notes_and_was_reopened(self):
+        note = {"note_id": "N001", "author": "Mentor A",
+                "message": "Wi-Fi router reboot attempted"}
+        ticket = self._ticket(notes=[note], was_reopened=True)
+        save_tickets([ticket], self.path)
+        loaded = load_tickets(self.path)
+        self.assertEqual(len(loaded[0]["notes"]), 1)
+        self.assertEqual(loaded[0]["notes"][0]["note_id"], "N001")
+        self.assertIs(loaded[0]["was_reopened"], True)

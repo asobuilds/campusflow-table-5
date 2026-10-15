@@ -252,6 +252,35 @@ class ReopenTicketTests(WorkflowTestCase):
 
         self.assertIs(returned, ticket)
 
+    def test_reopen_sets_was_reopened_true(self):
+        # §12.9 — reopen_ticket must set was_reopened = True. Sticky:
+        # resolving again and reopening again must not reset it.
+        tickets = [
+            {
+                "id": "T001", "title": "Wi-Fi down", "category": "Network",
+                "urgency": "high", "affected_users": 12, "priority": "critical",
+                "status": "resolved", "assigned_to": "Agene",
+                "notes": [], "was_reopened": False,
+            }
+        ]
+        ok, ticket = reopen_ticket(tickets, "T001")
+        self.assertTrue(ok)
+        self.assertIs(ticket["was_reopened"], True)
+
+    def test_reopen_twice_keeps_was_reopened_true(self):
+        # §12.9 — the flag is sticky. Second reopen does not flip it back.
+        tickets = [
+            {
+                "id": "T001", "title": "Wi-Fi down", "category": "Network",
+                "urgency": "high", "affected_users": 12, "priority": "critical",
+                "status": "resolved", "assigned_to": "Agene",
+                "notes": [], "was_reopened": True,
+            }
+        ]
+        ok, ticket = reopen_ticket(tickets, "T001")
+        self.assertTrue(ok)
+        self.assertIs(ticket["was_reopened"], True)   
+
 
 class WorkflowIntegrationTests(WorkflowTestCase):
     """The full life of a ticket, through every legal edge and no others."""

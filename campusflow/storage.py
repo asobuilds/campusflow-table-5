@@ -19,6 +19,7 @@ def load_tickets(path):
     Every returned dict is newly built with these keys in order:
         id, title, category, urgency, affected_users,
         priority, status, assigned_to
+    plus `notes` (a list of validated note dicts) and `was_reopened` (a bool).
     """
     # 1. Absent file is not an error — nothing has been saved yet.
     if not os.path.exists(path):
@@ -44,6 +45,7 @@ def load_tickets(path):
     required_keys = (
         "id", "title", "category", "urgency",
         "affected_users", "priority", "status", "assigned_to",
+        "notes",
     )
     normalized = []
 
@@ -52,7 +54,7 @@ def load_tickets(path):
         if not isinstance(ticket, dict):
             raise CorruptDataError("Each ticket must be a JSON object")
 
-        # 5b. All eight keys must be present.
+        # 5b. All nine required keys must be present.
         for key in required_keys:
             if key not in ticket:
                 raise CorruptDataError(f"Ticket missing required key: {key}")
@@ -100,7 +102,70 @@ def load_tickets(path):
         else:
             raise CorruptDataError(f"Invalid assigned_to: {raw_assigned!r}")
 
-        # 5h. Build a NEW dict — never mutate the parsed input.
+        # 5h. was_reopened: legacy tickets may not have it.
+        #     §12.9: missing key -> default False (documented exception to §2).
+        #     Present but not a bool -> CorruptDataError (corruption, not legacy).
+        raw_was_reopened = ticket.get("was_reopened", False)
+        if not isinstance(raw_was_reopened, bool):
+            raise CorruptDataError(
+                f"Invalid was_reopened: {raw_was_reopened!r}")
+
+        # 5i. notes: must be a list. Each note validated (§12.7):
+        #     - dict with keys note_id, author, message
+        #     - note_id matches ^N\d+$ and is unique within this ticket
+        #       (compared by numeric value: N7 and N007 collide, like T7/T007)
+        #     - author non-empty after .strip()
+        #     - message length 5..300 after .strip()
+        raw_notes = ticket["notes"]
+        if not isinstance(raw_notes, list):
+            raise CorruptDataError("notes must be a list")
+
+        notes = []
+        seen_note_ids = set()
+        for note in raw_notes:
+            if not isinstance(note, dict):
+                raise CorruptDataError("Each note must be a JSON object")
+            for nkey in ("note_id", "author", "message"):
+                if nkey not in note:
+                    raise CorruptDataError(
+                        f"Note missing required key: {nkey}")
+
+            raw_note_id = note["note_id"]
+            if (not isinstance(raw_note_id, str)
+                    or not re.match(r"^N\d+$", raw_note_id)):
+                raise CorruptDataError(
+                    f"Invalid note_id: {raw_note_id!r}")
+            note_num = int(raw_note_id[1:])
+            if note_num in seen_note_ids:
+                raise CorruptDataError(
+                    f"Duplicate note_id by numeric value: {raw_note_id!r}")
+            seen_note_ids.add(note_num)
+            note_id = f"N{note_num:03d}"
+
+            raw_author = note["author"]
+            if not isinstance(raw_author, str) or not raw_author.strip():
+                raise CorruptDataError(
+                    f"Invalid note author: {raw_author!r}")
+
+            raw_message = note["message"]
+            if not isinstance(raw_message, str):
+                raise CorruptDataError(
+                    f"Invalid note message: {raw_message!r}")
+            message = raw_message.strip()
+            if len(message) < 5:
+                raise CorruptDataError(
+                    "Note message must be at least 5 characters")
+            if len(message) > 300:
+                raise CorruptDataError(
+                    "Note message must be at most 300 characters")
+
+            notes.append({
+                "note_id": note_id,
+                "author": raw_author.strip(),
+                "message": message,
+            })
+
+        # 5j. Build a NEW dict — never mutate the parsed input.
         normalized.append({
             "id": ticket_id,
             "title": title,
@@ -110,6 +175,8 @@ def load_tickets(path):
             "priority": priority,
             "status": status,
             "assigned_to": assigned_to,
+            "notes": notes,
+            "was_reopened": raw_was_reopened,
         })
 
     # 6. Duplicate ids compared by numeric value (T7 and T007 collide).
