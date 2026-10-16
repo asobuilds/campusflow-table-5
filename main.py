@@ -13,6 +13,7 @@ from campusflow.search import filter_tickets, search_tickets
 from campusflow.storage import load_tickets, save_tickets
 from campusflow.tickets import create_ticket
 from campusflow.workflow import assign_ticket, change_status, reopen_ticket
+from campusflow.notes import add_note, get_ticket_notes
 
 DATA_PATH = "data/tickets.json"
 
@@ -179,9 +180,67 @@ def handle_summary_report(tickets):
     for priority, count in report["by_priority"].items():
         print(f"  {priority:<15}: {count}")
 
+def handle_add_note(tickets):
+    """F8: Add a note to an existing ticket."""
+    print("\n--- Add Ticket Note ---")
+
+    ticket_id = prompt("Enter ticket ID: ")
+    if ticket_id is None:
+        return
+
+    author = prompt("Enter your name: ")
+    if author is None:
+        return
+
+    message = prompt("Enter note message: ")
+    if message is None:
+        return
+
+    ok, result = add_note(tickets, ticket_id, author, message)
+
+    if not ok:
+        print(f"Error: {result}")
+        return
+
+    # Persist the ticket and its newly added note.
+    save_tickets(tickets)
+
+    print(
+        f"Note {result['note_id']} added successfully "
+        f"to ticket {ticket_id}."
+    )
+
+
+def handle_view_notes(tickets):
+    """F9: Display notes associated with a ticket."""
+    print("\n--- View Ticket Notes ---")
+
+    ticket_id = prompt("Enter ticket ID: ")
+    if ticket_id is None:
+        return
+
+    ok, result = get_ticket_notes(tickets, ticket_id)
+
+    if not ok:
+        print(f"Error: {result}")
+        return
+
+    if not result:
+        print(f"Ticket {ticket_id} has no notes yet.")
+        return
+
+    print(f"\nNotes for ticket {ticket_id}:")
+
+    for note in result:
+        print(f"\nNote ID: {note['note_id']}")
+        print(f"Author: {note['author']}")
+        print(f"Message: {note['message']}")
+
+
 def handle_search_tickets(tickets):
     """F7: Search tickets by ID, title, category, or other fields."""
     print("\n--- Search Tickets ---")
+
     query = prompt("Enter search text: ")
 
     if query is None:
@@ -194,14 +253,15 @@ def handle_search_tickets(tickets):
         return
 
     print(f"\nFound {len(results)} matching ticket(s):")
+
     for ticket in results:
         assignee = ticket.get("assigned_to") or "Unassigned"
+
         print(
             f"{ticket['id']} | {ticket['title']} | "
             f"{ticket['category']} | {ticket['priority']} | "
             f"{ticket['status']} | {assignee}"
         )
-
 
 def print_menu():
     """Display the main CLI navigation menu."""
@@ -216,7 +276,9 @@ def print_menu():
     print("6. View Work Queue")
     print("7. Summary Report")
     print("8. Search Tickets")
-    print("9. Filter Tickets")
+    print("9. Add Ticket Note")
+    print("10. View Ticket Notes")
+    print("11. Filter Tickets")
     print("0. Exit")
 
 def handle_filter_tickets(tickets):
@@ -291,8 +353,12 @@ def main():
         elif choice == "7":
             handle_summary_report(tickets)
         elif choice == "8":
-            handle_search_tickets(tickets)
+            handle_add_note(tickets)
         elif choice == "9":
+            handle_view_notes(tickets)
+        elif choice == "10":
+            handle_search_tickets(tickets)
+        elif choice == "11":
             handle_filter_tickets(tickets)
         else:
             print("Invalid selection. Please choose an option from the menu.")
