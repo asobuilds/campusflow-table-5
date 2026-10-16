@@ -92,15 +92,17 @@ Beyond the v1 baseline:
 
 ## Features
 
-| | Feature | Owner | Implementation |
-|---|---|---|---|
+| # | Feature | Owner | Implementation |
+|---|---------|-------|----------------|
 | F1 | Create a ticket | Engineer A | `campusflow/tickets.py` |
-| F2 | List and view tickets | Shared | `main.py` |
+| F2 | Search and filtering | Engineer B | `campusflow/search.py` |
 | F3 | Assign a ticket | Engineer B | `campusflow/workflow.py` |
 | F4 | Change status, reopen | Engineer B | `campusflow/workflow.py` |
 | F5 | Work queue | Engineer B | `campusflow/reports.py` |
-| F6 | Reports | Engineer B | `campusflow/reports.py` |
+| F6 | Reports (totals, breakdowns, resolution %, reopened count) | Engineer B | `campusflow/reports.py` |
 | F7 | Persistence | Engineer A | `campusflow/storage.py` |
+| F8 | Structured follow-up notes | Engineer A (data) + B (CLI) | `campusflow/notes.py`, `main.py` |
+| F9 | Engineering Understanding Check | Engineer B | `campusflow/quiz.py`, `campusflow/quiz_check.py` |
 
 ## How the Pieces Fit Together
 
