@@ -14,7 +14,7 @@ something you did not run.
 
 ## Fellow: Agene (Engineer A)
 
-### Interaction #1 — <concept/topic>
+### Interaction #1 — Python bools vs ints in type checking
 
 Problem:My `validate_ticket_input` needs to reject `affected_users=True`, but Python treats True as an integer (`isinstance(True, int) is True`). `isinstance(x, int)` would let booleans through.
 

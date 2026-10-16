@@ -12,10 +12,22 @@ CampusFlow solves the problem where Learn2Earn campus staff receive technical su
 
 ## Team
 
-- **Agene Okoh** — Engineer A: tickets, validation, priority engine, storage
-- **Eyung Emmanuel** — Engineer B: assignment, workflow, work queue, reports
+### Current sprint (CampusFlow Next)
 
----
+- **Agene Okoh** — Engineer A: validation helpers, notes module, JSON
+  persistence, ticket schema extensions (`notes`, `was_reopened`).
+- **Emmanuel Elaigwu** — Engineer B: search & filtering, report enhancements
+  (category breakdown, resolution percentage, reopened count), CLI
+  integration for the notes menus and the Engineering Understanding Check.
+
+### Prior sprint (CampusFlow v1)
+
+- **Agene Okoh** — Engineer A: ticket creation, validation, priority engine,
+  JSON storage.
+- **Eyung Emmanuel** — Engineer B: assignment, workflow, queue, reports.
+
+The v1 work is preserved as the baseline for CampusFlow Next. The audit
+snapshot for that baseline is in `docs/baseline-check.md`.
 
 ## Running It
 
@@ -59,6 +71,24 @@ docs/
   ai-learning-log.md    AI-assisted learning entries per engineer
 data/tickets.json       the store (git-ignored)
 ```
+## CampusFlow Next — what changed
+
+Beyond the v1 baseline:
+
+- **Structured follow-up notes.** Every ticket carries `notes: [...]`.
+  `add_note` validates author (non-blank) and message (5–300 chars), rejects
+  notes on resolved tickets, and never consumes a note ID on failure. See
+  §12 of `docs/design-decisions.md`.
+- **`was_reopened` flag.** Set to `True` by `reopen_ticket`, sticky forever.
+  Legacy tickets missing the key default to `False` on load. Used by the
+  report to count ever-reopened tickets.
+- **Extended reports.** Totals by status, priority, and category; unresolved
+  and resolved counts; resolution percentage (guarded against zero); reopened
+  count.
+- **Safe JSON load.** `load_tickets` validates the full notes schema, enforces
+  per-ticket note-ID uniqueness by numeric value, and preserves stored
+  priorities (never re-derived). See §12.7.
+- **Test suite.** 163 tests, all passing on `main`.
 
 ## Features
 

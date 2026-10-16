@@ -1,0 +1,268 @@
+### Result from cli test
+
+campusflow-table-5 git:(main) ✗ cd ~/campusflow-table-5
+rm -f data/tickets.json
+python3 main.py
+Starting CampusFlow...
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 1
+
+--- Create Ticket ---
+Title: Wi-Fi down
+Category (Network, Hardware, Software, Other): Network
+Urgency (low, medium, high): high
+Affected users (positive integer): 15
+Success: Ticket T001 created [critical priority, open].
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 1
+
+--- Create Ticket ---
+Title: 
+Category (Network, Hardware, Software, Other): Network
+Urgency (low, medium, high): low
+Affected users (positive integer): 1
+Error: Title cannot be blank
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 3
+
+--- Assign Ticket ---
+Ticket ID (e.g. T001): T001
+Staff Name: Agene
+Success: T001 assigned to Agene.
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 4
+
+--- Change Status ---
+Ticket ID: T001
+New Status (in_progress, resolved): in_progress
+Success: T001 status updated to in_progress.
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 4
+
+--- Change Status ---
+Ticket ID: T001
+New Status (in_progress, resolved): resolved
+Success: T001 status updated to resolved.
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 4
+
+--- Change Status ---
+Ticket ID: T002
+New Status (in_progress, resolved): in_progress
+Error: No ticket with ID T002.
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 1
+
+--- Create Ticket ---
+Title: laptop won't boot
+Category (Network, Hardware, Software, Other): Hardware
+Urgency (low, medium, high): low
+Affected users (positive integer): 1
+Success: Ticket T002 created [low priority, open].
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 4
+
+--- Change Status ---
+Ticket ID: in_progress
+New Status (in_progress, resolved): in_progress
+Error: No ticket with ID IN_PROGRESS.
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 4
+
+--- Change Status ---
+Ticket ID: T002
+New Status (in_progress, resolved): in_progress
+Error: Assign the ticket before starting work.
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 5
+
+--- Reopen Ticket ---
+Ticket ID to reopen: T001
+Success: T001 reopened (status: open, assigned to: Agene).
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 6
+
+--- Work Queue (Open & In Progress) ---
+ID     Priority   Status        Assignee     Title
+-----------------------------------------------------------------
+T001   critical   open          Agene        Wi-Fi down
+T002   low        open          Unassigned   laptop won't boot
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 0
+
+Saving tickets and exiting. Goodbye!
+➜  campusflow-table-5 git:(main) ✗ cat data/tickets.json
+python3 main.py
+[
+  {
+    "id": "T001",
+    "title": "Wi-Fi down",
+    "category": "Network",
+    "urgency": "high",
+    "affected_users": 15,
+    "priority": "critical",
+    "status": "open",
+    "assigned_to": "Agene",
+    "notes": [],
+    "was_reopened": true
+  },
+  {
+    "id": "T002",
+    "title": "laptop won't boot",
+    "category": "Hardware",
+    "urgency": "low",
+    "affected_users": 1,
+    "priority": "low",
+    "status": "open",
+    "assigned_to": null,
+    "notes": [],
+    "was_reopened": false
+  }
+]Starting CampusFlow...
+
+==============================
+      CampusFlow Helpdesk     
+==============================
+1. Create Ticket
+2. List / View Tickets
+3. Assign Ticket
+4. Change Ticket Status
+5. Reopen Resolved Ticket
+6. View Work Queue
+7. Summary Report
+0. Exit
+Select an option [0-7]: 0
+
+Saving tickets and exiting. Goodbye!
