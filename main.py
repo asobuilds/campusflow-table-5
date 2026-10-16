@@ -14,6 +14,7 @@ from campusflow.storage import load_tickets, save_tickets
 from campusflow.tickets import create_ticket
 from campusflow.workflow import assign_ticket, change_status, reopen_ticket
 from campusflow.notes import add_note, get_ticket_notes
+from campusflow.quiz_check import run_quiz
 
 DATA_PATH = "data/tickets.json"
 
@@ -279,6 +280,7 @@ def print_menu():
     print("9. Add Ticket Note")
     print("10. View Ticket Notes")
     print("11. Filter Tickets")
+    print("12. Engineering Understanding Check")
     print("0. Exit")
 
 def handle_filter_tickets(tickets):
@@ -333,7 +335,7 @@ def main():
 
     while True:
         print_menu()
-        choice = prompt("Select an option [0-9]: ")
+        choice = prompt("Select an option [0-12]: ")
         if choice is None or choice == "0":
             print("\nSaving tickets and exiting. Goodbye!")
             save_tickets(tickets, DATA_PATH)
@@ -353,13 +355,15 @@ def main():
         elif choice == "7":
             handle_summary_report(tickets)
         elif choice == "8":
-            handle_add_note(tickets)
-        elif choice == "9":
-            handle_view_notes(tickets)
-        elif choice == "10":
             handle_search_tickets(tickets)
+        elif choice == "9":
+            handle_add_note(tickets)
+        elif choice == "10":
+            handle_view_notes(tickets)
         elif choice == "11":
             handle_filter_tickets(tickets)
+        elif choice == "12":
+            run_quiz()
         else:
             print("Invalid selection. Please choose an option from the menu.")
 
